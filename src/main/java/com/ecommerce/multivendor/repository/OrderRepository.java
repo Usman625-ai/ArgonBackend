@@ -1,0 +1,117 @@
+package com.ecommerce.multivendor.repository;
+
+import com.ecommerce.multivendor.entity.Order;
+import com.ecommerce.multivendor.enums.OrderStatus;
+import com.ecommerce.multivendor.enums.PaymentStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    Optional<Order> findByOrderNumber(String orderNumber);
+
+    // Customer queries
+    Page<Order> findByCustomerIdOrderByCreatedAtDesc(Long customerId, Pageable pageable);
+    List<Order> findByCustomerId(Long customerId);
+
+    // Seller queries
+    Page<Order> findBySellerIdOrderByCreatedAtDesc(Long sellerId, Pageable pageable);
+    List<Order> findBySellerId(Long sellerId);
+
+    Page<Order> findBySellerIdAndOrderStatus(Long sellerId, OrderStatus status, Pageable pageable);
+
+    // Admin queries
+    Page<Order> findAllByOrderByCreatedAtDesc(Pageable pageable);
+    Page<Order> findByOrderStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable);
+
+    // Stats - platform-wide
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.orderStatus != 'CANCELLED'")
+    long countActiveOrders();
+
+    @Query("SELECT COALESCE(SUM(o.finalAmount), 0) FROM Order o WHERE o.paymentStatus = 'PAID'")
+    BigDecimal calculateTotalRevenue();
+
+    @Query("SELECT COALESCE(SUM(o.finalAmount), 0) FROM Order o WHERE o.paymentStatus = 'PAID' " +
+            "AND o.createdAt BETWEEN :from AND :to")
+    BigDecimal calculateRevenueByDateRange(@Param("from") LocalDateTime from,
+                                           @Param("to") LocalDateTime to);
+
+    // Seller stats
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.seller.id = :sellerId AND o.orderStatus != 'CANCELLED'")
+    long countActiveOrdersBySeller(@Param("sellerId") Long sellerId);
+
+    @Query("SELECT COALESCE(SUM(o.finalAmount), 0) FROM Order o WHERE o.seller.id = :sellerId " +
+            "AND o.paymentStatus = 'PAID'")
+    BigDecimal calculateRevenueForSeller(@Param("sellerId") Long sellerId);
+
+    /** Count orders for seller grouped by each status */
+    @Query("SELECT o.orderStatus, COUNT(o) FROM Order o WHERE o.seller.id = :sellerId " +
+            "GROUP BY o.orderStatus")
+    List<Object[]> countOrdersByStatusForSeller(@Param("sellerId") Long sellerId);
+
+    /** Pending orders (PENDING or CONFIRMED) awaiting seller action */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.seller.id = :sellerId " +
+            "AND o.orderStatus IN ('PENDING','CONFIRMED')")
+    long countPendingOrdersBySeller(@Param("sellerId") Long sellerId);
+
+    /** Active in-progress orders (PROCESSING, SHIPPED, OUT_FOR_DELIVERY) */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.seller.id = :sellerId " +
+            "AND o.orderStatus IN ('PROCESSING','SHIPPED','OUT_FOR_DELIVERY')")
+    long countActiveInProgressOrdersBySeller(@Param("sellerId") Long sellerId);
+
+    /** Delivered orders for seller */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.seller.id = :sellerId " +
+            "AND o.orderStatus = 'DELIVERED'")
+    long countDeliveredOrdersBySeller(@Param("sellerId") Long sellerId);
+
+    /** Cancelled orders for seller */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.seller.id = :sellerId " +
+            "AND o.orderStatus = 'CANCELLED'")
+    long countCancelledOrdersBySeller(@Param("sellerId") Long sellerId);
+
+    /** Monthly revenue for seller */
+    @Query("SELECT COALESCE(SUM(o.finalAmount), 0) FROM Order o WHERE o.seller.id = :sellerId " +
+            "AND o.paymentStatus = 'PAID' AND o.createdAt BETWEEN :from AND :to")
+    BigDecimal calculateRevenueForSellerByDateRange(@Param("sellerId") Long sellerId,
+                                                    @Param("from") LocalDateTime from,
+                                                    @Param("to") LocalDateTime to);
+
+    /** Daily revenue for seller (last 7 days) */
+    @Query("SELECT DATE(o.createdAt) as date, COALESCE(SUM(o.finalAmount), 0) as revenue " +
+            "FROM Order o WHERE o.seller.id = :sellerId AND o.paymentStatus = 'PAID' " +
+            "AND o.createdAt >= :since GROUP BY DATE(o.createdAt) ORDER BY date ASC")
+    List<Object[]> getDailyRevenueForSeller(@Param("sellerId") Long sellerId,
+                                            @Param("since") LocalDateTime since);
+
+    // Auto-cancel: find pending orders older than given time
+    @Query("SELECT o FROM Order o WHERE o.orderStatus = 'PENDING' AND o.createdAt < :cutoff " +
+            "AND o.paymentMethod = 'CASH_ON_DELIVERY'")
+    List<Order> findPendingOrdersOlderThan(@Param("cutoff") LocalDateTime cutoff);
+
+    // Reports
+    @Query("SELECT o FROM Order o WHERE o.seller.id = :sellerId AND o.createdAt BETWEEN :from AND :to " +
+            "ORDER BY o.createdAt DESC")
+    List<Order> findBySellerAndDateRange(@Param("sellerId") Long sellerId,
+                                         @Param("from") LocalDateTime from,
+                                         @Param("to") LocalDateTime to);
+
+    @Query("SELECT o FROM Order o WHERE o.createdAt BETWEEN :from AND :to ORDER BY o.createdAt DESC")
+    List<Order> findByDateRange(@Param("from") LocalDateTime from,
+                                @Param("to") LocalDateTime to);
+
+    // Dashboard chart data: daily revenue for last N days
+    @Query("SELECT DATE(o.createdAt) as date, COALESCE(SUM(o.finalAmount), 0) as revenue " +
+            "FROM Order o WHERE o.paymentStatus = 'PAID' AND o.createdAt >= :since " +
+            "GROUP BY DATE(o.createdAt) ORDER BY date ASC")
+    List<Object[]> getDailyRevenue(@Param("since") LocalDateTime since);
+}
