@@ -48,12 +48,20 @@ public class AuthService {
             throw new BadRequestException("Admin registration is not allowed via this endpoint");
         }
 
+        // Validate shop name for sellers
+        if (request.getRole() == Role.SELLER) {
+            if (request.getShopName() == null || request.getShopName().trim().isEmpty()) {
+                throw new BadRequestException("Shop name is required for sellers");
+            }
+        }
+
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail().toLowerCase().trim())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .contactNumber(request.getContactNumber())
+                .shopName(request.getRole() == Role.SELLER ? request.getShopName().trim() : null)
                 .active(true)
                 .verified(false)
                 .build();
@@ -62,7 +70,6 @@ public class AuthService {
         if (request.getRole() == Role.SELLER) {
             user.setSellerStatus(SellerStatus.PENDING);
         }
-
         // Generate OTP for email verification
         String otp = OtpGenerator.generateOtp(6);
         user.setVerificationOtp(passwordEncoder.encode(otp));

@@ -27,6 +27,9 @@ public class RegisterRequest {
     @NotNull(message = "Role is required")
     private Role role;
 
+    @Size(min = 2, max = 100, message = "Shop name must be between 2 and 100 characters")
+    private String shopName;
+
     @Pattern(
         regexp = "^(\\+92|0)[0-9]{9,10}$",
         message = "Enter a valid Pakistan phone number (e.g. 0311-1234567)"

@@ -86,24 +86,29 @@ public class DataLoader implements CommandLineRunner {
                 .build();
         users.put("admin", userRepository.save(admin));
 
-        users.put("seller1", reg("Rahul Sharma",  "seller1@shop.com", Role.SELLER));
-        users.put("seller2", reg("Priya Patel",   "seller2@shop.com", Role.SELLER));
-        users.put("seller3", reg("Tariq Ahmed",   "seller3@shop.com", Role.SELLER));
-        users.put("seller4", reg("Zara Malik",    "seller4@shop.com", Role.SELLER));
+        // Sellers now include shopName during registration
+        users.put("seller1", reg("Rahul Sharma",  "seller1@shop.com", Role.SELLER, "TechZone Electronics"));
+        users.put("seller2", reg("Priya Patel",   "seller2@shop.com", Role.SELLER, "Style Hub Fashion"));
+        users.put("seller3", reg("Tariq Ahmed",   "seller3@shop.com", Role.SELLER, "HomeDecor Paradise"));
+        users.put("seller4", reg("Zara Malik",    "seller4@shop.com", Role.SELLER, "VipSetup"));
 
-        users.put("c1", reg("Amit Kumar",   "customer1@shop.com", Role.CUSTOMER));
-        users.put("c2", reg("Sneha Joshi",  "customer2@shop.com", Role.CUSTOMER));
-        users.put("c3", reg("Ali Hassan",   "customer3@shop.com", Role.CUSTOMER));
-        users.put("c4", reg("Sara Ahmed",   "customer4@shop.com", Role.CUSTOMER));
-        users.put("c5", reg("Usman Malik",  "customer5@shop.com", Role.CUSTOMER));
-        users.put("c6", reg("Maria Khan",   "customer6@shop.com", Role.CUSTOMER));
-        users.put("c7", reg("Fatima Noor",  "customer7@shop.com", Role.CUSTOMER));
-        users.put("c8", reg("Bilal Sheikh", "customer8@shop.com", Role.CUSTOMER));
+        users.put("c1", reg("Amit Kumar",   "customer1@shop.com", Role.CUSTOMER, null));
+        users.put("c2", reg("Sneha Joshi",  "customer2@shop.com", Role.CUSTOMER, null));
+        users.put("c3", reg("Ali Hassan",   "customer3@shop.com", Role.CUSTOMER, null));
+        users.put("c4", reg("Sara Ahmed",   "customer4@shop.com", Role.CUSTOMER, null));
+        users.put("c5", reg("Usman Malik",  "customer5@shop.com", Role.CUSTOMER, null));
+        users.put("c6", reg("Maria Khan",   "customer6@shop.com", Role.CUSTOMER, null));
+        users.put("c7", reg("Fatima Noor",  "customer7@shop.com", Role.CUSTOMER, null));
+        users.put("c8", reg("Bilal Sheikh", "customer8@shop.com", Role.CUSTOMER, null));
     }
 
-    private User reg(String name, String email, Role role) {
+    private User reg(String name, String email, Role role, String shopName) {
         RegisterRequest r = new RegisterRequest();
-        r.setName(name); r.setEmail(email); r.setPassword(PW); r.setRole(role);
+        r.setName(name);
+        r.setEmail(email);
+        r.setPassword(PW);
+        r.setRole(role);
+        r.setShopName(shopName);
         r.setContactNumber("03" + String.format("%09d", (long)(Math.random() * 1_000_000_000)));
         authService.register(r);
         User u = userRepository.findByEmail(email).orElseThrow();
@@ -123,7 +128,6 @@ public class DataLoader implements CommandLineRunner {
 
         runAs(users.get("seller1"), () -> {
             User s = users.get("seller1");
-            s.setShopName("TechZone Electronics");
             s.setShopDescription("Pakistan's #1 authorized dealer for premium electronics.");
             s.setShopLogo("https://images.unsplash.com/photo-1518770660439-4636190af475?w=200");
             s.setShopBanner("https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=800");
@@ -132,7 +136,6 @@ public class DataLoader implements CommandLineRunner {
         });
         runAs(users.get("seller2"), () -> {
             User s = users.get("seller2");
-            s.setShopName("Style Hub Fashion");
             s.setShopDescription("Trendy Pakistani fashion for all.");
             s.setShopLogo("https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200");
             s.setShopBanner("https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800");
@@ -141,7 +144,6 @@ public class DataLoader implements CommandLineRunner {
         });
         runAs(users.get("seller3"), () -> {
             User s = users.get("seller3");
-            s.setShopName("HomeDecor Paradise");
             s.setShopDescription("Beautiful home decor and essentials.");
             s.setShopLogo("https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200");
             userRepository.save(s);
