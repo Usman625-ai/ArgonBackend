@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -38,7 +39,10 @@ public class ReportService {
      * Generate platform-wide sales report for the given date range.
      * Returns raw bytes of the .xlsx file.
      */
-    public byte[] generateAdminSalesReport(LocalDateTime from, LocalDateTime to) {
+
+    public byte[] generateAdminSalesReport(LocalDate fromDt, LocalDate toDt) {
+        LocalDateTime from = fromDt.atStartOfDay();           // 2026-06-11T00:00:00
+        LocalDateTime to = toDt.atTime(23, 59, 59);         // 2026-07-11T23:59:59
         List<Order> orders = orderRepository.findByDateRange(from, to);
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             // Sheet 1: Orders Summary

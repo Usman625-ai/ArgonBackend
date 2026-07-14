@@ -1,6 +1,8 @@
 package com.ecommerce.multivendor.service.impl;
 
 import com.ecommerce.multivendor.dto.request.UpdateSellerProfileRequest;
+import com.ecommerce.multivendor.dto.response.ApiResponse;
+import com.ecommerce.multivendor.dto.response.MonthlyRevenueResponse;
 import com.ecommerce.multivendor.dto.response.SellerDashboardResponse;
 import com.ecommerce.multivendor.dto.response.UserResponse;
 import com.ecommerce.multivendor.entity.User;
@@ -9,15 +11,21 @@ import com.ecommerce.multivendor.exception.BadRequestException;
 import com.ecommerce.multivendor.repository.OrderRepository;
 import com.ecommerce.multivendor.repository.ProductRepository;
 import com.ecommerce.multivendor.repository.UserRepository;
+import com.ecommerce.multivendor.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.time.Month;
+import java.time.format.TextStyle;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +33,7 @@ import java.util.Map;
 @Transactional
 public class SellerService {
 
+    private final SecurityUtils securityUtils;
     private final UserRepository     userRepository;
     private final OrderRepository    orderRepository;
     private final ProductRepository  productRepository;
@@ -137,5 +146,71 @@ public class SellerService {
                     "Your seller account status is " + seller.getSellerStatus()
                             + ". Admin approval is required before you can perform this action.");
         }
+    }
+
+//    Revenue
+
+    @Transactional(readOnly = true)
+    public ApiResponse<MonthlyRevenueResponse> getMonthlyRevenue(Integer year) {
+        User currentSeller = securityUtils.getCurrentUser();
+        int targetYear = (year != null) ? year : LocalDate.now().getYear();
+
+        List<Object[]> results = orderRepository.findMonthlyRevenueBySellerAndYear(
+                currentSeller.getId(), targetYear);
+
+        List<MonthlyRevenueResponse.MonthlyData> monthlyDataList = new ArrayList<>();
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        long totalOrders = 0;
+
+        for (int month = 1; month <= 12; month++) {
+            Month m = Month.of(month);
+            monthlyDataList.add(MonthlyRevenueResponse.MonthlyData.builder()
+                    .month(month)
+                    .monthName(m.getDisplayName(TextStyle.SHORT, Locale.ENGLISH))
+                    .revenue(BigDecimal.ZERO)
+                    .orderCount(0L)
+                    .productCount(0L)
+                    .build());
+        }
+
+        for (Object[] row : results) {
+            int month = ((Number) row[0]).intValue();
+            BigDecimal revenue = row[1] != null ? new BigDecimal(row[1].toString()) : BigDecimal.ZERO;
+            long orderCount = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+            long productCount = row[3] != null ? ((Number) row[3]).longValue() : 0L;
+
+            int index = month - 1;
+            monthlyDataList.set(index, MonthlyRevenueResponse.MonthlyData.builder()
+                    .month(month)
+                    .monthName(Month.of(month).getDisplayName(TextStyle.SHORT, Locale.ENGLISH))
+                    .revenue(revenue.setScale(2, RoundingMode.HALF_UP))
+                    .orderCount(orderCount)
+                    .productCount(productCount)
+                    .build());
+
+            totalRevenue = totalRevenue.add(revenue);
+            totalOrders += orderCount;
+        }
+
+        BigDecimal avgOrderValue = totalOrders > 0
+                ? totalRevenue.divide(BigDecimal.valueOf(totalOrders), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        MonthlyRevenueResponse response = MonthlyRevenueResponse.builder()
+                .year(targetYear)
+                .monthlyData(monthlyDataList)
+                .totalRevenue(totalRevenue.setScale(2, RoundingMode.HALF_UP))
+                .totalOrders(totalOrders)
+                .averageOrderValue(avgOrderValue)
+                .build();
+
+        return ApiResponse.success("Monthly revenue data retrieved successfully", response);
+    }
+
+    private User getCurrentSeller() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Seller not found"));
     }
 }

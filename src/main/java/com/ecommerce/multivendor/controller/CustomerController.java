@@ -20,6 +20,7 @@ import java.util.List;
 @PreAuthorize("hasRole('CUSTOMER')")
 public class CustomerController {
 
+    private final OrderStatusHistoryService historyService;
     private final ProductService productService;
     private final CategoryService categoryService;
     private final CartService cartService;
@@ -59,6 +60,12 @@ public class CustomerController {
     @GetMapping("/categories")
     public ResponseEntity<ApiResponse<List<CategoryResponse>>> getCategories() {
         return ResponseEntity.ok(ApiResponse.success(categoryService.getAllCategories()));
+    }
+
+    @GetMapping("/featured")
+    public ResponseEntity<ApiResponse<List<FeaturedProductResponse>>> getFeaturedProducts(
+            @RequestParam(required = false) Integer limit) {
+        return ResponseEntity.ok(productService.getFeaturedProducts(limit));
     }
 
     // Cart
@@ -103,7 +110,16 @@ public class CustomerController {
         return ResponseEntity.ok(ApiResponse.success("Cart cleared"));
     }
 
+
     // Orders
+
+    //   Status
+
+    @GetMapping("/orders/{id}/status-history")
+    public ResponseEntity<ApiResponse<List<OrderStatusHistoryResponse>>> getOrderStatusHistory(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(historyService.getOrderStatusHistory(id));
+    }
 
     @PostMapping("/orders/checkout")
     public ResponseEntity<ApiResponse<List<OrderResponse>>> checkout(

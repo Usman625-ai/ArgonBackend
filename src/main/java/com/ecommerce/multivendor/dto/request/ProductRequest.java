@@ -68,5 +68,8 @@ public class ProductRequest {
 
     private boolean featured;
 
+    @Size(max = 500, message = "Image URL is too long")
+    private String PrimaryImageUrl;
+
     private List<@Size(max = 500, message = "Image URL is too long") String> imageUrls;
 }

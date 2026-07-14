@@ -150,9 +150,8 @@ public class OrderService {
                 // Deduct stock
                 product.decreaseStock(ci.getQuantity());
             }
-
             // Record initial status
-            recordStatusChange(order, OrderStatus.PENDING, "Order placed", customer.getName());
+            recordStatusChange(order,order.getOrderStatus() , OrderStatus.PENDING, "Order placed", customer.getName());
             createdOrders.add(order);
             isFirstOrder = false;
         }
@@ -223,12 +222,13 @@ public class OrderService {
             throw new BadRequestException("Payment verification failed: " + result.getResponseMessage());
         }
 
+        OrderStatus previousStatus = order.getOrderStatus();
         order.setPaymentStatus(PaymentStatus.PAID);
         order.setPaymentId(result.getTransactionId());   // JazzCash pp_TransactionId
         order.setOrderStatus(OrderStatus.CONFIRMED);
         orderRepository.save(order);
 
-        recordStatusChange(order, OrderStatus.CONFIRMED,
+        recordStatusChange(order, previousStatus, OrderStatus.CONFIRMED,
             "JazzCash payment received. Order confirmed.", "System");
 
         emailService.sendPaymentSuccess(order);
@@ -254,6 +254,7 @@ public class OrderService {
 
         Order order = orderRepository.findByOrderNumber(result.getOrderNumber())
             .orElse(null);
+        OrderStatus previousStatus = order != null ? order.getOrderStatus() : null;
         if (order == null) {
             log.warn("[JazzCash Callback] Order not found: {}", result.getOrderNumber());
             return;
@@ -268,7 +269,7 @@ public class OrderService {
             order.setPaymentId(result.getTransactionId());
             order.setOrderStatus(OrderStatus.CONFIRMED);
             orderRepository.save(order);
-            recordStatusChange(order, OrderStatus.CONFIRMED,
+            recordStatusChange(order,previousStatus ,OrderStatus.CONFIRMED,
                 "JazzCash payment received via callback.", "System");
             emailService.sendPaymentSuccess(order);
             notificationService.createNotification(order.getCustomer(),
@@ -303,6 +304,8 @@ public class OrderService {
     public OrderResponse cancelOrder(Long orderId, Long customerId, String reason) {
         Order order = getOrderForCustomer(orderId, customerId);
 
+        OrderStatus previousStatus = order.getOrderStatus();
+
         if (!order.isCancellable()) {
             throw new BadRequestException(
                 "Order cannot be cancelled. Only PENDING or CONFIRMED orders can be cancelled.");
@@ -327,7 +330,7 @@ public class OrderService {
         }
 
         orderRepository.save(order);
-        recordStatusChange(order, OrderStatus.CANCELLED,
+        recordStatusChange(order,previousStatus ,OrderStatus.CANCELLED,
             reason != null ? reason : "Cancelled by customer", order.getCustomer().getName());
 
         emailService.sendOrderCancelled(order, reason);
@@ -374,9 +377,10 @@ public class OrderService {
             }
         }
 
+        OrderStatus previousStatus = order.getOrderStatus();
         orderRepository.save(order);
-        recordStatusChange(order, request.getStatus(), request.getComment(),
-            order.getSeller().getName());
+        recordStatusChange(order, previousStatus, request.getStatus(), request.getComment(), order.getSeller().getName());
+
 
         // Email & notification
         if (request.getStatus() == OrderStatus.SHIPPED) {
@@ -420,11 +424,12 @@ public class OrderService {
         pendingOrders.forEach(order -> {
             order.getOrderItems().forEach(item ->
                 item.getProduct().increaseStock(item.getQuantity()));
+            OrderStatus previousStatus = order.getOrderStatus();
             order.setOrderStatus(OrderStatus.CANCELLED);
             order.setCancelledAt(LocalDateTime.now());
             order.setCancellationReason("Auto-cancelled: payment not received within 24 hours");
             orderRepository.save(order);
-            recordStatusChange(order, OrderStatus.CANCELLED,
+            recordStatusChange(order, previousStatus, OrderStatus.CANCELLED,
                 "Auto-cancelled by system", "System");
             log.info("Auto-cancelled order: {}", order.getOrderNumber());
         });
@@ -442,14 +447,15 @@ public class OrderService {
         return order;
     }
 
-    private void recordStatusChange(Order order, OrderStatus status,
-                                     String comment, String updatedBy) {
+    private void recordStatusChange(Order order, OrderStatus previousStatus, OrderStatus newStatus,
+                                    String comment, String updatedBy) {
         OrderStatusHistory history = OrderStatusHistory.builder()
-            .order(order)
-            .status(status)
-            .comment(comment)
-            .updatedBy(updatedBy)
-            .build();
+                .order(order)
+                .previousStatus(previousStatus)  // ✅ Now tracking previous status
+                .newStatus(newStatus)
+                .notes(comment)
+                .changedBy(null)  // Set to null or fetch actual user if needed
+                .build();
         statusHistoryRepository.save(history);
     }
 
@@ -461,8 +467,8 @@ public class OrderService {
             OrderStatus.PENDING, List.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED),
             OrderStatus.CONFIRMED, List.of(OrderStatus.PROCESSING, OrderStatus.CANCELLED),
             OrderStatus.PROCESSING, List.of(OrderStatus.SHIPPED, OrderStatus.CANCELLED),
-            OrderStatus.SHIPPED, List.of(OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED),
-            OrderStatus.OUT_FOR_DELIVERY, List.of(OrderStatus.DELIVERED)
+            OrderStatus.SHIPPED, List.of(OrderStatus.DELIVERED),
+            OrderStatus.DELIVERED, List.of(OrderStatus.REFUNDED,OrderStatus.RETURNED,OrderStatus.DELIVERED)
         );
 
         List<OrderStatus> validTransitions = allowed.getOrDefault(current, List.of());
@@ -512,9 +518,9 @@ public class OrderService {
             .cancellationReason(order.getCancellationReason())
             .cancellable(order.isCancellable())
             .statusHistory(history.stream().map(h -> OrderStatusHistoryResponse.builder()
-                .status(h.getStatus())
-                .comment(h.getComment())
-                .updatedBy(h.getUpdatedBy())
+                .newStatus(h.getNewStatus())
+                .notes(h.getNotes())
+                .changedByName(h.getChangedBy() != null ? h.getChangedBy().getName() : "System")
                 .createdAt(h.getCreatedAt())
                 .build()).toList())
             .createdAt(order.getCreatedAt())

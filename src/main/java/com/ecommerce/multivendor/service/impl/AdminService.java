@@ -1,11 +1,10 @@
 package com.ecommerce.multivendor.service.impl;
 
+import com.ecommerce.multivendor.dto.request.ProductStatusUpdateRequest;
 import com.ecommerce.multivendor.dto.request.SystemSettingsRequest;
-import com.ecommerce.multivendor.dto.response.DashboardStatsResponse;
-import com.ecommerce.multivendor.dto.response.PagedResponse;
-import com.ecommerce.multivendor.dto.response.SystemSettingsResponse;
-import com.ecommerce.multivendor.dto.response.UserResponse;
+import com.ecommerce.multivendor.dto.response.*;
 import com.ecommerce.multivendor.entity.GlobalSettings;
+import com.ecommerce.multivendor.entity.Product;
 import com.ecommerce.multivendor.entity.User;
 import com.ecommerce.multivendor.enums.NotificationType;
 import com.ecommerce.multivendor.enums.Role;
@@ -89,6 +88,8 @@ public class AdminService {
                 .dailyRevenue(dailyRevenue)
                 .build();
     }
+
+
 
     // ─── Seller Management ─────────────────────────────────────────────────
 
@@ -218,6 +219,21 @@ public class AdminService {
                 .last(page.isLast())
                 .first(page.isFirst())
                 .build();
+    }
+
+    @Transactional
+    public ApiResponse<Product> toggleProductStatus(Long productId, ProductStatusUpdateRequest request) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+
+        product.setActive(request.getActive());
+        Product updated = productRepository.save(product);
+
+        String message = Boolean.TRUE.equals(request.getActive())
+                ? "Product activated successfully"
+                : "Product deactivated successfully";
+
+        return ApiResponse.success(message, updated);
     }
 
 //    public SystemSettingsResponse getSettings() {

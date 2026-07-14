@@ -22,17 +22,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Customer queries
     Page<Order> findByCustomerIdOrderByCreatedAtDesc(Long customerId, Pageable pageable);
-    List<Order> findByCustomerId(Long customerId);
 
     // Seller queries
     Page<Order> findBySellerIdOrderByCreatedAtDesc(Long sellerId, Pageable pageable);
-    List<Order> findBySellerId(Long sellerId);
-
-    Page<Order> findBySellerIdAndOrderStatus(Long sellerId, OrderStatus status, Pageable pageable);
 
     // Admin queries
     Page<Order> findAllByOrderByCreatedAtDesc(Pageable pageable);
-    Page<Order> findByOrderStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable);
 
     // Stats - platform-wide
     @Query("SELECT COUNT(o) FROM Order o WHERE o.orderStatus != 'CANCELLED'")
@@ -114,4 +109,27 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             "FROM Order o WHERE o.paymentStatus = 'PAID' AND o.createdAt >= :since " +
             "GROUP BY DATE(o.createdAt) ORDER BY date ASC")
     List<Object[]> getDailyRevenue(@Param("since") LocalDateTime since);
+
+    /** Find orders by seller and orderStatus */
+    @Query("SELECT o FROM Order o WHERE o.seller.id = :sellerId AND o.orderStatus = :orderStatus")
+    List<Order> findBySellerIdAndOrderStatus(@Param("sellerId") Long sellerId, @Param("orderStatus") OrderStatus orderStatus);
+
+    /** Monthly revenue for seller chart data */
+    @Query(value = """
+    SELECT 
+        MONTH(o.created_at) as month,
+        SUM(o.final_amount) as revenue,
+        COUNT(*) as order_count,
+        COALESCE(SUM(oi.quantity), 0) as product_count
+    FROM orders o
+    LEFT JOIN order_items oi ON o.id = oi.order_id
+    WHERE o.seller_id = :sellerId 
+    AND YEAR(o.created_at) = :year
+    AND o.order_status NOT IN ('CANCELLED', 'REFUNDED')
+    GROUP BY MONTH(o.created_at)
+    ORDER BY MONTH(o.created_at)
+    """, nativeQuery = true)
+    List<Object[]> findMonthlyRevenueBySellerAndYear(
+            @Param("sellerId") Long sellerId,
+            @Param("year") int year);
 }

@@ -1,7 +1,10 @@
 package com.ecommerce.multivendor.controller;
 
 import com.ecommerce.multivendor.dto.request.CouponRequest;
+import com.ecommerce.multivendor.dto.request.ProductStatusUpdateRequest;
+import com.ecommerce.multivendor.dto.request.SiteSettingUpdateRequest;
 import com.ecommerce.multivendor.dto.response.*;
+import com.ecommerce.multivendor.entity.Product;
 import com.ecommerce.multivendor.enums.SellerStatus;
 import com.ecommerce.multivendor.service.impl.*;
 import jakarta.validation.Valid;
@@ -11,6 +14,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -20,6 +24,7 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
+    private final SiteSettingService siteSettingService;
     private final AdminService adminService;
     private final CategoryService categoryService;
     private final CouponService couponService;
@@ -184,8 +189,8 @@ public class AdminController {
 
     @GetMapping("/reports/sales")
     public ResponseEntity<byte[]> generateSalesReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         byte[] reportBytes = reportService.generateAdminSalesReport(from, to);
         String filename = reportService.generateReportFilename("admin_sales");
 
@@ -194,6 +199,29 @@ public class AdminController {
                 .contentType(MediaType.parseMediaType(
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(reportBytes);
+    }
+
+
+    // ---- products────────────────────────────────────────────────────────────────────────
+
+    @PutMapping("/products/{id}/status")
+    public ResponseEntity<ApiResponse<Product>> updateProductStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody ProductStatusUpdateRequest request) {
+        return ResponseEntity.ok(adminService.toggleProductStatus(id, request));
+    }
+
+    // ---- siteSettings ────────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/settings")
+    public ResponseEntity<ApiResponse<SiteSettingResponse>> getSiteSettings() {
+        return ResponseEntity.ok(siteSettingService.getSettings());
+    }
+
+    @PutMapping("/settings")
+    public ResponseEntity<ApiResponse<SiteSettingResponse>> updateSiteSettings(
+            @Valid @RequestBody SiteSettingUpdateRequest request) {
+        return ResponseEntity.ok(siteSettingService.updateSettings(request));
     }
 }
 

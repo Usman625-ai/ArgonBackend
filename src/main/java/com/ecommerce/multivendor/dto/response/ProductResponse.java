@@ -1,5 +1,6 @@
 package com.ecommerce.multivendor.dto.response;
 
+import com.ecommerce.multivendor.entity.ProductImage;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Data;
@@ -34,7 +35,7 @@ public class ProductResponse {
     private Long sellerId;
     private String sellerName;
     private String shopName;
-    private List<ProductImageResponse> images;
     private String primaryImageUrl;
+    private List<ProductImageResponse> images;
     private LocalDateTime createdAt;
 }

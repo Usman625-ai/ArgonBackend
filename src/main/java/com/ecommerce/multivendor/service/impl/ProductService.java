@@ -2,19 +2,15 @@ package com.ecommerce.multivendor.service.impl;
 
 import com.ecommerce.multivendor.dto.request.ProductRequest;
 import com.ecommerce.multivendor.dto.request.StockUpdateRequest;
-import com.ecommerce.multivendor.dto.response.PagedResponse;
-import com.ecommerce.multivendor.dto.response.ProductImageResponse;
-import com.ecommerce.multivendor.dto.response.ProductResponse;
-import com.ecommerce.multivendor.entity.Category;
-import com.ecommerce.multivendor.entity.Product;
-import com.ecommerce.multivendor.entity.ProductImage;
-import com.ecommerce.multivendor.entity.User;
+import com.ecommerce.multivendor.dto.response.*;
+import com.ecommerce.multivendor.entity.*;
 import com.ecommerce.multivendor.exception.BadRequestException;
 import com.ecommerce.multivendor.exception.ResourceNotFoundException;
 import com.ecommerce.multivendor.exception.UnauthorizedException;
 import com.ecommerce.multivendor.repository.CategoryRepository;
 import com.ecommerce.multivendor.repository.ProductImageRepository;
 import com.ecommerce.multivendor.repository.ProductRepository;
+import com.ecommerce.multivendor.repository.SiteSettingRepository;
 import com.ecommerce.multivendor.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +34,7 @@ public class ProductService {
     private final ProductImageRepository productImageRepository;
     private final CategoryRepository categoryRepository;
     private final CloudinaryService cloudinaryService;
+    private final SiteSettingRepository siteSettingRepository;
     private final NotificationService notificationService;
 
     // ─── Public: Browse / Search ───────────────────────────────────────────
@@ -152,8 +150,12 @@ public class ProductService {
                 .category(category)
                 .seller(seller)
                 .featured(request.isFeatured())
+                .primaryImageUrl((request.getPrimaryImageUrl()))
                 .active(true)
                 .build();
+        if (request.getSpecifications() != null && request.getSpecifications().isBlank()) {
+            request.setSpecifications(null);
+        }
 
         product = productRepository.save(product);
 
@@ -161,7 +163,6 @@ public class ProductService {
         if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
             saveProductImages(product, request.getImageUrls());
         }
-
         log.info("Product created: {} by seller: {}", product.getId(), seller.getId());
 
         // Notify admin for moderation if needed (optional)
@@ -183,6 +184,7 @@ public class ProductService {
         product.setDiscountedPrice(request.getDiscountedPrice());
         product.setStockQuantity(request.getStockQuantity());
         product.setBrand(request.getBrand());
+        product.setPrimaryImageUrl(request.getPrimaryImageUrl());
         product.setTags(request.getTags());
         product.setSpecifications(request.getSpecifications());
         product.setCategory(category);
@@ -199,6 +201,9 @@ public class ProductService {
             });
             productImageRepository.deleteByProductId(productId);
             saveProductImages(product, request.getImageUrls());
+        }
+        if (request.getSpecifications() != null && request.getSpecifications().isBlank()) {
+            request.setSpecifications(null);
         }
 
         product = productRepository.save(product);
@@ -320,11 +325,7 @@ public class ProductService {
 
     public ProductResponse toProductResponse(Product product) {
         List<ProductImage> images = productImageRepository.findByProductId(product.getId());
-        String primaryImageUrl = images.stream()
-                .filter(ProductImage::isPrimary)
-                .map(ProductImage::getImageUrl)
-                .findFirst()
-                .orElse(images.isEmpty() ? null : images.get(0).getImageUrl());
+        ProductImage primaryImageUrl = images.stream().filter(ProductImage::isPrimary).findFirst().orElse(null);
 
         return ProductResponse.builder()
                 .id(product.getId())
@@ -358,7 +359,7 @@ public class ProductService {
                                 .displayOrder(img.getDisplayOrder())
                                 .build()
                 ).toList())
-                .primaryImageUrl(primaryImageUrl)
+                .primaryImageUrl(primaryImageUrl.getImageUrl())
                 .createdAt(product.getCreatedAt())
                 .build();
     }
@@ -415,5 +416,55 @@ public class ProductService {
         return sortDir.equalsIgnoreCase("asc")
                 ? Sort.by(column).ascending()
                 : Sort.by(column).descending();
+    }
+
+//    Featured product
+@Transactional(readOnly = true)
+public ApiResponse<List<FeaturedProductResponse>> getFeaturedProducts(Integer limit) {
+    List<Product> products;
+
+    if (limit != null && limit > 0) {
+        Pageable pageable = PageRequest.of(0, limit);
+        products = productRepository.findFeaturedProducts(pageable).getContent();
+    } else {
+        products = productRepository.findFeaturedProducts();
+    }
+
+    String currencySymbol = siteSettingRepository.findTopByOrderByIdAsc()
+            .map(SiteSetting::getCurrencySymbol)
+            .orElse("PKR");
+
+    List<FeaturedProductResponse> response = products.stream()
+            .map(p -> mapToFeaturedResponse(p, currencySymbol))
+            .toList();
+
+    return ApiResponse.success("Featured products retrieved successfully", response);
+}
+
+    private FeaturedProductResponse mapToFeaturedResponse(Product p, String currencySymbol) {
+        return FeaturedProductResponse.builder()
+                .id(p.getId())
+                .name(p.getName())
+                .slug(p.getSlug())
+                .description(p.getDescription())
+                .price(p.getPrice())
+                .discountedPrice(p.getDiscountedPrice())
+                .currencySymbol(currencySymbol)
+                .stockQuantity(p.getStockQuantity())
+                .primaryImageUrl(p.getPrimaryImageUrl())
+                .images(p.getImages().stream()
+                        .map(img -> ProductImageResponse.builder()
+                                .id(img.getId())
+                                .imageUrl(img.getImageUrl())
+                                .primary(img.isPrimary())
+                                .displayOrder(img.getDisplayOrder())
+                                .build())
+                        .toList())
+                .averageRating(p.getAverageRating() != null ? p.getAverageRating().doubleValue() : 0.0)
+                .reviewCount(p.getTotalReviews())
+                .categoryName(p.getCategory() != null ? p.getCategory().getName() : null)
+                .sellerShopName(p.getSeller() != null ? p.getSeller().getShopName() : null)
+                .featuredAt(p.getFeaturedAt())
+                .build();
     }
 }

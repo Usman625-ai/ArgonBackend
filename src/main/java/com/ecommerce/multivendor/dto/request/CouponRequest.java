@@ -6,6 +6,7 @@ import jakarta.validation.constraints.*;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -53,10 +54,10 @@ public class CouponRequest {
     private BigDecimal maxDiscount;     // null = no cap
 
     @NotNull(message = "Valid-from date is required")
-    private LocalDateTime validFrom;    // @Future removed — see class javadoc
+    private LocalDate validFrom;
 
     @NotNull(message = "Valid-until date is required")
-    private LocalDateTime validUntil;   // @Future removed — see class javadoc
+    private LocalDate validUntil;
 
     @Positive(message = "Usage limit must be a positive number")
     private Integer usageLimit;         // null = unlimited

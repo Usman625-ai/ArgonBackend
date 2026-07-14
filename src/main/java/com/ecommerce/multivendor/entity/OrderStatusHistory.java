@@ -2,16 +2,20 @@ package com.ecommerce.multivendor.entity;
 
 import com.ecommerce.multivendor.enums.OrderStatus;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "order_status_history")
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class OrderStatusHistory {
 
     @Id
@@ -23,14 +27,19 @@ public class OrderStatusHistory {
     private Order order;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private OrderStatus status;
+    @Column(name = "previous_status", nullable = false)
+    private OrderStatus previousStatus;
 
-    @Column(columnDefinition = "TEXT")
-    private String comment;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "new_status", nullable = false)
+    private OrderStatus newStatus;
 
-    @Column(name = "updated_by")
-    private String updatedBy;
+    @Column(name = "notes", columnDefinition = "TEXT")
+    private String notes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "changed_by")
+    private User changedBy;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

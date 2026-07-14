@@ -19,11 +19,23 @@ import java.util.Optional;
 public interface ProductRepository extends JpaRepository<Product, Long>,
         JpaSpecificationExecutor<Product> {
 
+    @Modifying
+    @Query("UPDATE Product p SET p.active = :active WHERE p.id = :id")
+    int updateProductStatus(@Param("id") Long id, @Param("active") Boolean active);
+
+    @Query("SELECT p FROM Product p WHERE p.active = true AND p.featured = true ORDER BY p.featuredAt DESC")
+    List<Product> findFeaturedProducts();
+
+    @Query("SELECT p FROM Product p WHERE p.active = true AND p.featured = true ORDER BY p.featuredAt DESC")
+    Page<Product> findFeaturedProducts(Pageable pageable);
+
+    @Query("SELECT p FROM Product p WHERE p.active = true AND p.featured = true AND p.category.id = :categoryId")
+    List<Product> findFeaturedProductsByCategory(@Param("categoryId") Long categoryId);
+
     Optional<Product> findBySlug(String slug);
     boolean existsBySlug(String slug);
 
     Page<Product> findBySellerId(Long sellerId, Pageable pageable);
-    List<Product> findBySellerId(Long sellerId);
 
     Page<Product> findBySellerIdAndActiveTrue(Long sellerId, Pageable pageable);
     Page<Product> findByCategoryIdAndActiveTrue(Long categoryId, Pageable pageable);

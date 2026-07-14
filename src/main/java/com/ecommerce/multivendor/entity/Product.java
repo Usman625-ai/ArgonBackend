@@ -78,13 +78,19 @@ public class Product {
     @Builder.Default
     private int totalSold = 0;
 
-    @Column(name = "is_active")
+    @Column(name = "is_active",nullable = false)
     @Builder.Default
     private boolean active = true;
 
-    @Column(name = "is_featured")
+    @Column(name = "is_featured",nullable = false)
     @Builder.Default
     private boolean featured = false;
+
+    @Column(name = "featured_at")
+    private LocalDateTime featuredAt;
+
+    @Column(name = "primary_image_url")
+    private String primaryImageUrl;
 
     // Relationships
 
@@ -142,4 +148,5 @@ public class Product {
     public void increaseStock(int quantity) {
         this.stockQuantity += quantity;
     }
+
 }

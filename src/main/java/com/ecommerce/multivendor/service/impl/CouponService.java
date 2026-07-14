@@ -48,8 +48,8 @@ public class CouponService {
             .minOrderValue(request.getMinOrderValue() != null
                 ? request.getMinOrderValue() : BigDecimal.ZERO)
             .maxDiscount(request.getMaxDiscount())
-            .validFrom(request.getValidFrom())
-            .validUntil(request.getValidUntil())
+            .validFrom(request.getValidFrom().atStartOfDay())
+            .validUntil(request.getValidUntil().atTime(23, 59, 59))
             .usageLimit(request.getUsageLimit())
             .perUserLimit(request.getPerUserLimit())
             .active(true)
@@ -59,6 +59,7 @@ public class CouponService {
         log.info("Coupon created: {}", coupon.getCode());
         return toCouponResponse(coupon, null);
     }
+
 
     @Transactional(readOnly = true)
     public PagedResponse<CouponResponse> getAllCoupons(int page, int size) {

@@ -134,6 +134,7 @@ public class SecurityConfig {
                 "http://localhost:5173",
                 "http://localhost:4173",
                 "http://localhost:8080",
+                "http://localhost:8081",
                 "https://yourdomain.com"));
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept",

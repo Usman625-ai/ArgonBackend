@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -163,11 +164,13 @@ public class SellerController {
     @GetMapping("/reports/sales")
     public ResponseEntity<byte[]> generateSalesReport(
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDt,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDt) {
         User seller = securityUtils.getCurrentUser();
 
+        LocalDateTime from = fromDt.atStartOfDay();           // 2026-06-11T00:00:00
+        LocalDateTime to = toDt.atTime(23, 59, 59);
         // Default: current month
         LocalDateTime start = from != null ? from : LocalDateTime.now().withDayOfMonth(1);
         LocalDateTime end   = to   != null ? to   : LocalDateTime.now();
@@ -181,7 +184,6 @@ public class SellerController {
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(report);
     }
-
     // ─── Notifications ─────────────────────────────────────────────────────
 
     @GetMapping("/notifications")
@@ -198,5 +200,13 @@ public class SellerController {
     public ResponseEntity<ApiResponse<Void>> markAllRead() {
         notificationService.markAllAsRead(securityUtils.getCurrentUserId());
         return ResponseEntity.ok(ApiResponse.success("All notifications marked as read"));
+    }
+
+    // ---Revenue-------------------------------------------------------------
+
+    @GetMapping("/revenue/monthly")
+    public ResponseEntity<ApiResponse<MonthlyRevenueResponse>> getMonthlyRevenue(
+            @RequestParam(required = false) Integer year) {
+        return ResponseEntity.ok(sellerService.getMonthlyRevenue(year));
     }
 }
