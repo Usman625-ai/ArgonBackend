@@ -55,20 +55,31 @@ public class AuthService {
             }
         }
 
+        // Extract values before building user
+        final String shopName = request.getRole() == Role.SELLER ? request.getShopName().trim() : null;
+        final String email = request.getEmail().toLowerCase().trim();
+
         User user = User.builder()
                 .name(request.getName())
-                .email(request.getEmail().toLowerCase().trim())
+                .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .contactNumber(request.getContactNumber())
-                .shopName(request.getRole() == Role.SELLER ? request.getShopName().trim() : null)
+                .shopName(shopName)
                 .active(true)
                 .verified(false)
                 .build();
 
-        // Sellers start as pending approval
+// Sellers start as pending approval
+// Alert admins that a new seller needs approval
         if (request.getRole() == Role.SELLER) {
             user.setSellerStatus(SellerStatus.PENDING);
+            userRepository.findByRole(Role.ADMIN).forEach(admin ->
+                    notificationService.createNotification(admin,
+                            shopName + " (" + email + ") registered and is awaiting approval.",
+                            "New Seller Pending Approval",
+                            com.ecommerce.multivendor.enums.NotificationType.GENERAL,
+                            "/admin/sellers"));
         }
         // Generate OTP for email verification
         String otp = OtpGenerator.generateOtp(6);
@@ -269,4 +280,6 @@ public class AuthService {
                 .sellerApproved(user.getSellerStatus() == SellerStatus.APPROVED)
                 .build();
     }
+
+
 }

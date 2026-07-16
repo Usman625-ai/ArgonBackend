@@ -59,13 +59,60 @@ public class GlobalExceptionHandler {
             errors.put(fieldName, errorMessage);
         });
         log.warn("Validation errors: {}", errors);
+        String combined = errors.entrySet().stream()
+                .map(e -> e.getKey() + ": " + e.getValue())
+                .reduce((a, b) -> a + "; " + b)
+                .orElse("Validation failed");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(ApiResponse.<Map<String, String>>builder()
-                .success(false)
-                .error("Validation failed")
-                .data(errors)
-                .build());
+                .body(ApiResponse.<Map<String, String>>builder()
+                        .success(false)
+                        .error(combined)
+                        .data(errors)
+                        .build());
     }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Object>> handleDataIntegrityViolation(
+            org.springframework.dao.DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMessage());
+        String msg = "This action conflicts with existing data.";
+        String raw = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        if (raw != null) {
+            if (raw.toLowerCase().contains("duplicate entry")) {
+                msg = "This record already exists. Please try again.";
+            } else if (raw.toLowerCase().contains("cannot be null")) {
+                msg = "A required field is missing. Please check your submission and try again.";
+            }
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(msg));
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Object>> handleUnreadableBody(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        log.warn("Malformed request: {}", ex.getMessage());
+        String msg = "Invalid or missing request data.";
+        Throwable cause = ex.getCause();
+        if (cause instanceof com.fasterxml.jackson.databind.exc.InvalidFormatException ife
+                && ife.getTargetType() != null && ife.getTargetType().isEnum()) {
+            msg = "Invalid value '" + ife.getValue() + "' for field. Accepted values: "
+                    + java.util.Arrays.toString(ife.getTargetType().getEnumConstants());
+        } else if (ex.getMessage() != null && ex.getMessage().contains("Required request body is missing")) {
+            msg = "Request body is missing. Please try again or refresh the page.";
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(msg));
+    }
+
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Object>> handleTypeMismatch(
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex) {
+        log.warn("Type mismatch: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Invalid value for parameter '" + ex.getName() + "'."));
+    }
+
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Object>> handleBadCredentials(BadCredentialsException ex) {

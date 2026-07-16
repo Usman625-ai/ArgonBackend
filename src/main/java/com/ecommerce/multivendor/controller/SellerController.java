@@ -29,6 +29,7 @@ public class SellerController {
     private final ReportService reportService;
     private final NotificationService notificationService;
     private final SecurityUtils securityUtils;
+    private final CloudinaryService cloudinaryService;
 
     // ─── Dashboard ─────────────────────────────────────────────────────────
 
@@ -114,6 +115,16 @@ public class SellerController {
     }
 
     /** Upload product images (multipart) */
+
+    /** Upload standalone images (e.g. while creating a new product, before it has an id) */
+    @PostMapping("/uploads")
+    public ResponseEntity<ApiResponse<List<String>>> uploadStandaloneImages(
+            @RequestParam("files") List<MultipartFile> files) {
+        List<String> urls = cloudinaryService.uploadImages(files, "products").stream()
+                .map(m -> m.get("url")).toList();
+        return ResponseEntity.ok(ApiResponse.success("Images uploaded", urls));
+    }
+
     @PostMapping("/products/{id}/images")
     public ResponseEntity<ApiResponse<List<String>>> uploadImages(
             @PathVariable Long id,
@@ -200,6 +211,19 @@ public class SellerController {
     public ResponseEntity<ApiResponse<Void>> markAllRead() {
         notificationService.markAllAsRead(securityUtils.getCurrentUserId());
         return ResponseEntity.ok(ApiResponse.success("All notifications marked as read"));
+    }
+
+    @GetMapping("/notifications/unread-count")
+    public ResponseEntity<ApiResponse<Long>> getUnreadCount() {
+        return ResponseEntity.ok(ApiResponse.success(
+                notificationService.getUnreadCount(securityUtils.getCurrentUserId())
+        ));
+    }
+
+    @PutMapping("/notifications/{id}/read")
+    public ResponseEntity<ApiResponse<Void>> markOneRead(@PathVariable Long id) {
+        notificationService.markAsRead(securityUtils.getCurrentUserId(), id);
+        return ResponseEntity.ok(ApiResponse.success("Notification marked as read"));
     }
 
     // ---Revenue-------------------------------------------------------------

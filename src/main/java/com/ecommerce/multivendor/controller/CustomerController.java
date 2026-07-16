@@ -11,8 +11,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+
 
 @RestController
 @RequestMapping("/api/customer")
@@ -32,6 +34,7 @@ public class CustomerController {
     private final NotificationService notificationService;
     private final UserRepository userRepository;
     private final SecurityUtils securityUtils;
+    private final CloudinaryService cloudinaryService;
 
     // ─── Products (read-only, no auth needed but included for personalization) ──
 
@@ -275,6 +278,12 @@ public class CustomerController {
 
     // Profile
 
+    @PostMapping("/profile/photo")
+    public ResponseEntity<ApiResponse<String>> uploadProfilePhoto(@RequestParam("file") MultipartFile file) {
+        String url = cloudinaryService.uploadImage(file, "profiles").get("url");
+        return ResponseEntity.ok(ApiResponse.success("Photo uploaded", url));
+    }
+
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<UserResponse>> getProfile() {
         User customer = securityUtils.getCurrentUser();
@@ -332,5 +341,11 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<Void>> markAllRead() {
         notificationService.markAllAsRead(securityUtils.getCurrentUserId());
         return ResponseEntity.ok(ApiResponse.success("All notifications marked as read"));
+    }
+
+    @PutMapping("/notifications/{id}/read")
+    public ResponseEntity<ApiResponse<Void>> markOneRead(@PathVariable Long id) {
+        notificationService.markAsRead(securityUtils.getCurrentUserId(), id);
+        return ResponseEntity.ok(ApiResponse.success("Notification marked as read"));
     }
 }

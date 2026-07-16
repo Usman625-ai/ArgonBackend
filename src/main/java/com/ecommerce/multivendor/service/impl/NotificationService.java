@@ -78,4 +78,12 @@ public class NotificationService {
     public void markAllAsRead(Long userId) {
         notificationRepository.markAllAsRead(userId);
     }
+
+    @Transactional
+    public void markAsRead(Long userId, Long notificationId) {
+        int updated = notificationRepository.markAsRead(notificationId, userId);
+        if (updated == 0) {
+            throw new com.ecommerce.multivendor.exception.ResourceNotFoundException("Notification", notificationId);
+        }
+    }
 }

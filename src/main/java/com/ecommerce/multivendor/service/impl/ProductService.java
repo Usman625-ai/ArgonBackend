@@ -136,6 +136,15 @@ public class ProductService {
 
         String slug = generateUniqueSlug(request.getName());
 
+        String primaryImageUrl = request.getPrimaryImageUrl();
+        if ((primaryImageUrl == null || primaryImageUrl.isBlank())
+                && request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
+            primaryImageUrl = request.getImageUrls().get(0);
+        }
+        if (primaryImageUrl == null || primaryImageUrl.isBlank()) {
+            throw new BadRequestException("At least one product image is required");
+        }
+
         Product product = Product.builder()
                 .name(request.getName())
                 .slug(slug)
@@ -150,7 +159,7 @@ public class ProductService {
                 .category(category)
                 .seller(seller)
                 .featured(request.isFeatured())
-                .primaryImageUrl((request.getPrimaryImageUrl()))
+                .primaryImageUrl(primaryImageUrl)
                 .active(true)
                 .build();
         if (request.getSpecifications() != null && request.getSpecifications().isBlank()) {
@@ -184,11 +193,19 @@ public class ProductService {
         product.setDiscountedPrice(request.getDiscountedPrice());
         product.setStockQuantity(request.getStockQuantity());
         product.setBrand(request.getBrand());
-        product.setPrimaryImageUrl(request.getPrimaryImageUrl());
         product.setTags(request.getTags());
         product.setSpecifications(request.getSpecifications());
         product.setCategory(category);
         product.setFeatured(request.isFeatured());
+        // Only overwrite the primary image if a real value was supplied.
+        // Falling back to null here violates the NOT NULL DB constraint whenever
+        // the seller edits a product without re-selecting a primary image.
+        if (request.getPrimaryImageUrl() != null && !request.getPrimaryImageUrl().isBlank()) {
+            product.setPrimaryImageUrl(request.getPrimaryImageUrl());
+        } else if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
+            product.setPrimaryImageUrl(request.getImageUrls().get(0));
+        }
+        // else: keep the existing primaryImageUrl untouched
 
         // Update images if provided
         if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {

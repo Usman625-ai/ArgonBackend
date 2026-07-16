@@ -129,7 +129,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     GROUP BY MONTH(o.created_at)
     ORDER BY MONTH(o.created_at)
     """, nativeQuery = true)
+
     List<Object[]> findMonthlyRevenueBySellerAndYear(
             @Param("sellerId") Long sellerId,
             @Param("year") int year);
+
+
+    long countByOrderNumberStartingWith(String prefix);
 }

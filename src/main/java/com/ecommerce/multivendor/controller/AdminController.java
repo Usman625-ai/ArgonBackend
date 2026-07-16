@@ -6,6 +6,7 @@ import com.ecommerce.multivendor.dto.request.SiteSettingUpdateRequest;
 import com.ecommerce.multivendor.dto.response.*;
 import com.ecommerce.multivendor.entity.Product;
 import com.ecommerce.multivendor.enums.SellerStatus;
+import com.ecommerce.multivendor.security.SecurityUtils;
 import com.ecommerce.multivendor.service.impl.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,8 +16,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Map;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -24,12 +25,15 @@ import java.util.Map;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
+    private final NotificationService notificationService;
+    private final SecurityUtils securityUtils;
     private final SiteSettingService siteSettingService;
     private final AdminService adminService;
     private final CategoryService categoryService;
     private final CouponService couponService;
     private final OrderService orderService;
     private final ReportService reportService;
+    private final CloudinaryService cloudinaryService;
     private final com.ecommerce.multivendor.repository.GlobalSettingsRepository settingsRepository;
 
     // ─── System Settings ───────────────────────────────────────────────────
@@ -118,6 +122,14 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(
                 "User status updated", adminService.toggleUserStatus(id, enable)
         ));
+    }
+
+    @PostMapping("/uploads")
+    public ResponseEntity<ApiResponse<java.util.List<String>>> uploadCategoryImages(
+            @RequestParam("files") java.util.List<MultipartFile> files) {
+        java.util.List<String> urls = cloudinaryService.uploadImages(files, "categories").stream()
+                .map(m -> m.get("url")).toList();
+        return ResponseEntity.ok(ApiResponse.success("Images uploaded", urls));
     }
 
     // ─── Category Management ───────────────────────────────────────────────
@@ -222,6 +234,36 @@ public class AdminController {
     public ResponseEntity<ApiResponse<SiteSettingResponse>> updateSiteSettings(
             @Valid @RequestBody SiteSettingUpdateRequest request) {
         return ResponseEntity.ok(siteSettingService.updateSettings(request));
+    }
+
+    // ─── Notifications ─────────────────────────────────────────────────────
+
+    @GetMapping("/notifications")
+    public ResponseEntity<ApiResponse<PagedResponse<?>>> getNotifications(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.success(
+                notificationService.getNotifications(securityUtils.getCurrentUserId(), page, size)
+        ));
+    }
+
+    @GetMapping("/notifications/unread-count")
+    public ResponseEntity<ApiResponse<Long>> getUnreadCount() {
+        return ResponseEntity.ok(ApiResponse.success(
+                notificationService.getUnreadCount(securityUtils.getCurrentUserId())
+        ));
+    }
+
+    @PutMapping("/notifications/read-all")
+    public ResponseEntity<ApiResponse<Void>> markAllRead() {
+        notificationService.markAllAsRead(securityUtils.getCurrentUserId());
+        return ResponseEntity.ok(ApiResponse.success("All notifications marked as read"));
+    }
+
+    @PutMapping("/notifications/{id}/read")
+    public ResponseEntity<ApiResponse<Void>> markOneRead(@PathVariable Long id) {
+        notificationService.markAsRead(securityUtils.getCurrentUserId(), id);
+        return ResponseEntity.ok(ApiResponse.success("Notification marked as read"));
     }
 }
 
