@@ -19,13 +19,13 @@ public class AuthController {
     private final AuthService authService;
     private final SecurityUtils securityUtils;
 
-    /** Register a new CUSTOMER or SELLER */
+    /** Register a new CUSTOMER or SELLER. Stages a pending registration until OTP verification. */
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(
+    public ResponseEntity<ApiResponse<Void>> register(
             @Valid @RequestBody RegisterRequest request) {
-        AuthResponse response = authService.register(request);
+        authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Registration successful. Please verify your email.", response));
+                .body(ApiResponse.success("Registration initiated. Please verify your email with the OTP sent to " + request.getEmail() + "."));
     }
 
     /** Authenticate and return JWT tokens */
@@ -33,7 +33,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(
-            ApiResponse.success("Login successful", authService.login(request))
+                ApiResponse.success("Login successful", authService.login(request))
         );
     }
 
@@ -42,18 +42,18 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(
             @RequestHeader("Authorization") String bearerToken) {
         String token = bearerToken.startsWith("Bearer ")
-            ? bearerToken.substring(7) : bearerToken;
+                ? bearerToken.substring(7) : bearerToken;
         return ResponseEntity.ok(
-            ApiResponse.success("Token refreshed", authService.refreshToken(token))
+                ApiResponse.success("Token refreshed", authService.refreshToken(token))
         );
     }
 
-    /** Verify email using OTP */
+    /** Verify email using OTP. Creates the user account and returns auth tokens. */
     @PostMapping("/verify-email")
-    public ResponseEntity<ApiResponse<Void>> verifyEmail(
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyEmail(
             @Valid @RequestBody VerifyOtpRequest request) {
-        authService.verifyEmail(request);
-        return ResponseEntity.ok(ApiResponse.success("Email verified successfully"));
+        AuthResponse response = authService.verifyEmail(request);
+        return ResponseEntity.ok(ApiResponse.success("Email verified successfully", response));
     }
 
     /** Resend OTP to email */
@@ -69,7 +69,7 @@ public class AuthController {
             @Valid @RequestBody ForgotPasswordRequest request) {
         authService.forgotPassword(request);
         return ResponseEntity.ok(
-            ApiResponse.success("Password reset link sent to " + request.getEmail())
+                ApiResponse.success("Password reset link sent to " + request.getEmail())
         );
     }
 

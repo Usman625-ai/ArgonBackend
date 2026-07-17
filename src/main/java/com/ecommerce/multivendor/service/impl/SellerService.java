@@ -33,6 +33,8 @@ import java.util.*;
 @Transactional
 public class SellerService {
 
+
+    private final NotificationService notificationService;
     private final SecurityUtils securityUtils;
     private final UserRepository     userRepository;
     private final OrderRepository    orderRepository;
@@ -116,9 +118,10 @@ public class SellerService {
     }
 
     public UserResponse updateSellerProfile(User seller, UpdateSellerProfileRequest request) {
-        if (seller.getSellerStatus() != SellerStatus.APPROVED) {
+        if (seller.getSellerStatus() != SellerStatus.APPROVED
+                && seller.getSellerStatus() != SellerStatus.REJECTED) {
             throw new BadRequestException(
-                    "Only approved sellers can update their profile. Current status: "
+                    "Only approved or rejected sellers can update their profile. Current status: "
                             + seller.getSellerStatus());
         }
 
@@ -135,6 +138,43 @@ public class SellerService {
 
         userRepository.save(seller);
         log.info("Seller profile updated: {}", seller.getId());
+        return adminService.toUserResponse(seller);
+    }
+
+    // ─── Reapply after rejection ───────────────────────────────────────
+
+    public UserResponse reapplyAsSeller(User seller, UpdateSellerProfileRequest request) {
+        if (seller.getSellerStatus() != SellerStatus.REJECTED) {
+            throw new BadRequestException(
+                    "Only rejected sellers can reapply. Current status: " + seller.getSellerStatus());
+        }
+
+        if (request.getShopName() == null || request.getShopName().trim().isEmpty()) {
+            throw new BadRequestException("Shop name is required to reapply");
+        }
+
+        if (request.getShopName()          != null) seller.setShopName(request.getShopName());
+        if (request.getShopDescription()   != null) seller.setShopDescription(request.getShopDescription());
+        if (request.getShopLogo()          != null) seller.setShopLogo(request.getShopLogo());
+        if (request.getShopBanner()        != null) seller.setShopBanner(request.getShopBanner());
+        if (request.getGstNumber()         != null) seller.setGstNumber(request.getGstNumber());
+        if (request.getPanNumber()         != null) seller.setPanNumber(request.getPanNumber());
+        if (request.getContactNumber()     != null) seller.setContactNumber(request.getContactNumber());
+        if (request.getBankAccountNumber() != null) seller.setBankAccountNumber(request.getBankAccountNumber());
+        if (request.getBankIfsc()          != null) seller.setBankIfsc(request.getBankIfsc());
+        if (request.getBankName()          != null) seller.setBankName(request.getBankName());
+
+        seller.setSellerStatus(SellerStatus.PENDING);
+        seller.setRejectionReason(null);
+        userRepository.save(seller);
+
+        notificationService.createNotification(seller,
+                "Your reapplication has been submitted and is pending admin review.",
+                "Reapplication Submitted",
+                com.ecommerce.multivendor.enums.NotificationType.GENERAL,
+                "/seller/dashboard");
+
+        log.info("Seller {} reapplied after rejection", seller.getId());
         return adminService.toUserResponse(seller);
     }
 

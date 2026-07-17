@@ -3,10 +3,11 @@ package com.ecommerce.multivendor.service.impl;
 import com.ecommerce.multivendor.entity.Order;
 import com.ecommerce.multivendor.entity.User;
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -254,4 +255,23 @@ public class EmailService {
         sb.append("</table>");
         return sb.toString();
     }
+
+    public void sendVerificationOtpEmail(String email, String name, String otp) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(email);
+            message.setSubject("Shopverse - Email Verification OTP");
+            message.setText("Hi " + name + ",\n\n"
+                    + "Your email verification OTP is: " + otp + "\n\n"
+                    + "This OTP is valid for 10 minutes.\n\n"
+                    + "If you did not request this, please ignore this email.\n\n"
+                    + "Regards,\nShopverse Team");
+            mailSender.send(message);
+            log.info("Verification OTP email sent to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send verification OTP email to {}: {}", email, e.getMessage());
+            throw new RuntimeException("Failed to send verification email. Please try again.");
+        }
+    }
+
 }

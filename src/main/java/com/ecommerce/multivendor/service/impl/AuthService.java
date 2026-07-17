@@ -3,12 +3,14 @@ package com.ecommerce.multivendor.service.impl;
 import com.ecommerce.multivendor.dto.request.*;
 import com.ecommerce.multivendor.dto.response.AuthResponse;
 import com.ecommerce.multivendor.entity.PasswordResetToken;
+import com.ecommerce.multivendor.entity.PendingRegistration;
 import com.ecommerce.multivendor.entity.User;
 import com.ecommerce.multivendor.enums.Role;
 import com.ecommerce.multivendor.enums.SellerStatus;
 import com.ecommerce.multivendor.exception.BadRequestException;
 import com.ecommerce.multivendor.exception.ResourceNotFoundException;
 import com.ecommerce.multivendor.repository.PasswordResetTokenRepository;
+import com.ecommerce.multivendor.repository.PendingRegistrationRepository;
 import com.ecommerce.multivendor.repository.UserRepository;
 import com.ecommerce.multivendor.security.JwtTokenProvider;
 import com.ecommerce.multivendor.util.OtpGenerator;
@@ -31,6 +33,7 @@ import java.util.UUID;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final PendingRegistrationRepository pendingRegistrationRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -38,9 +41,11 @@ public class AuthService {
     private final EmailService emailService;
     private final NotificationService notificationService;
 
+    private static final int OTP_RESEND_COOLDOWN_SECONDS = 60;
+
     // ─── Registration ─────────────────────────────────────────────────────
 
-    public AuthResponse register(RegisterRequest request) {
+    public void register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BadRequestException("Email is already registered");
         }
@@ -48,54 +53,36 @@ public class AuthService {
             throw new BadRequestException("Admin registration is not allowed via this endpoint");
         }
 
-        // Validate shop name for sellers
         if (request.getRole() == Role.SELLER) {
             if (request.getShopName() == null || request.getShopName().trim().isEmpty()) {
                 throw new BadRequestException("Shop name is required for sellers");
             }
         }
 
-        // Extract values before building user
-        final String shopName = request.getRole() == Role.SELLER ? request.getShopName().trim() : null;
         final String email = request.getEmail().toLowerCase().trim();
 
-        User user = User.builder()
+        // Replace any existing pending registration for this email
+        pendingRegistrationRepository.findByEmail(email)
+                .ifPresent(pendingRegistrationRepository::delete);
+        pendingRegistrationRepository.flush();
+
+        String otp = OtpGenerator.generateOtp(6);
+        PendingRegistration pending = PendingRegistration.builder()
                 .name(request.getName())
                 .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .contactNumber(request.getContactNumber())
-                .shopName(shopName)
-                .active(true)
-                .verified(false)
+                .shopName(request.getRole() == Role.SELLER ? request.getShopName().trim() : null)
+                .verificationOtp(passwordEncoder.encode(otp))
+                .otpExpiry(LocalDateTime.now().plusMinutes(10))
+                .lastOtpSentAt(LocalDateTime.now())
                 .build();
 
-// Sellers start as pending approval
-// Alert admins that a new seller needs approval
-        if (request.getRole() == Role.SELLER) {
-            user.setSellerStatus(SellerStatus.PENDING);
-            userRepository.findByRole(Role.ADMIN).forEach(admin ->
-                    notificationService.createNotification(admin,
-                            shopName + " (" + email + ") registered and is awaiting approval.",
-                            "New Seller Pending Approval",
-                            com.ecommerce.multivendor.enums.NotificationType.GENERAL,
-                            "/admin/sellers"));
-        }
-        // Generate OTP for email verification
-        String otp = OtpGenerator.generateOtp(6);
-        user.setVerificationOtp(passwordEncoder.encode(otp));
-        user.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        pendingRegistrationRepository.save(pending);
+        log.info("Pending registration staged for: {}", email);
 
-        user = userRepository.save(user);
-        log.info("New user registered: {} [{}]", user.getEmail(), user.getRole());
-
-        // Send verification email asynchronously
-        emailService.sendVerificationOtp(user, otp);
-
-        String accessToken  = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getEmail(), user.getRole().name());
-
-        return buildAuthResponse(user, accessToken, refreshToken);
+        emailService.sendVerificationOtpEmail(email, request.getName(), otp);
     }
 
     // ─── Login ─────────────────────────────────────────────────────────────
@@ -115,7 +102,6 @@ public class AuthService {
             throw new BadRequestException("Your account has been disabled. Please contact support.");
         }
 
-        // Warn seller if pending (but still allow login so they can see status)
         if (user.getRole() == Role.SELLER && user.getSellerStatus() == SellerStatus.PENDING) {
             log.info("Pending seller logged in: {}", user.getEmail());
         }
@@ -154,49 +140,81 @@ public class AuthService {
 
     // ─── Email Verification ────────────────────────────────────────────────
 
-    public void verifyEmail(VerifyOtpRequest request) {
-        User user = userRepository.findByEmail(request.getEmail().toLowerCase().trim())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    public AuthResponse verifyEmail(VerifyOtpRequest request) {
+        String email = request.getEmail().toLowerCase().trim();
+        PendingRegistration pending = pendingRegistrationRepository.findByEmail(email)
+                .orElseThrow(() -> new BadRequestException("No pending registration found for this email. Please register again."));
 
-        if (user.isVerified()) {
-            throw new BadRequestException("Email is already verified");
-        }
-        if (user.getOtpExpiry() == null || LocalDateTime.now().isAfter(user.getOtpExpiry())) {
+        if (pending.getOtpExpiry() == null || LocalDateTime.now().isAfter(pending.getOtpExpiry())) {
             throw new BadRequestException("OTP has expired. Please request a new one.");
         }
-        if (!passwordEncoder.matches(request.getOtp(), user.getVerificationOtp())) {
+        if (!passwordEncoder.matches(request.getOtp(), pending.getVerificationOtp())) {
             throw new BadRequestException("Invalid OTP");
         }
 
-        user.setVerified(true);
-        user.setVerificationOtp(null);
-        user.setOtpExpiry(null);
-        userRepository.save(user);
+        // Only now do we create the real user record
+        User user = User.builder()
+                .name(pending.getName())
+                .email(pending.getEmail())
+                .password(pending.getPassword())
+                .role(pending.getRole())
+                .contactNumber(pending.getContactNumber())
+                .shopName(pending.getShopName())
+                .active(true)
+                .verified(true)
+                .build();
+
+        if (user.getRole() == Role.SELLER) {
+            user.setSellerStatus(SellerStatus.PENDING);
+            final String shopName = user.getShopName();
+            final String userEmail = user.getEmail();
+            userRepository.findByRole(Role.ADMIN).forEach(admin ->
+                    notificationService.createNotification(admin,
+                            shopName + " (" + userEmail + ") registered and is awaiting approval.",
+                            "New Seller Pending Approval",
+                            com.ecommerce.multivendor.enums.NotificationType.GENERAL,
+                            "/admin/sellers"));
+        }
+
+        user = userRepository.save(user);
+        pendingRegistrationRepository.delete(pending);
+        pendingRegistrationRepository.flush();
 
         notificationService.createNotification(user,
-                "Welcome to " + user.getName() + "! Your email has been verified.",
+                "Welcome " + user.getName() + "! Your email has been verified.",
                 "Account Verified", com.ecommerce.multivendor.enums.NotificationType.GENERAL, null);
 
-        log.info("Email verified for user: {}", user.getEmail());
+        log.info("Email verified and user created: {}", user.getEmail());
+
+        String accessToken  = jwtTokenProvider.generateAccessToken(user.getEmail(), user.getRole().name());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getEmail(), user.getRole().name());
+
+        return buildAuthResponse(user, accessToken, refreshToken);
     }
 
     // ─── Resend OTP ────────────────────────────────────────────────────────
 
     public void resendVerificationOtp(String email) {
-        User user = userRepository.findByEmail(email.toLowerCase().trim())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        String normalizedEmail = email.toLowerCase().trim();
+        PendingRegistration pending = pendingRegistrationRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new BadRequestException("No pending registration found for this email. Please register again."));
 
-        if (user.isVerified()) {
-            throw new BadRequestException("Email is already verified");
+        if (pending.getLastOtpSentAt() != null) {
+            long secondsSinceLast = java.time.Duration.between(pending.getLastOtpSentAt(), LocalDateTime.now()).getSeconds();
+            if (secondsSinceLast < OTP_RESEND_COOLDOWN_SECONDS) {
+                long wait = OTP_RESEND_COOLDOWN_SECONDS - secondsSinceLast;
+                throw new BadRequestException("Please wait " + wait + " second(s) before requesting a new OTP.");
+            }
         }
 
         String otp = OtpGenerator.generateOtp(6);
-        user.setVerificationOtp(passwordEncoder.encode(otp));
-        user.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
-        userRepository.save(user);
+        pending.setVerificationOtp(passwordEncoder.encode(otp));
+        pending.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        pending.setLastOtpSentAt(LocalDateTime.now());
+        pendingRegistrationRepository.save(pending);
 
-        emailService.sendVerificationOtp(user, otp);
-        log.info("OTP resent to: {}", email);
+        emailService.sendVerificationOtpEmail(normalizedEmail, pending.getName(), otp);
+        log.info("OTP resent to: {}", normalizedEmail);
     }
 
     // ─── Forgot Password ───────────────────────────────────────────────────
@@ -205,7 +223,6 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail().toLowerCase().trim())
                 .orElseThrow(() -> new ResourceNotFoundException("No account found with this email"));
 
-        // Invalidate old token if exists
         passwordResetTokenRepository.findByUserIdAndUsedFalse(user.getId())
                 .ifPresent(t -> {
                     t.setUsed(true);
@@ -280,6 +297,5 @@ public class AuthService {
                 .sellerApproved(user.getSellerStatus() == SellerStatus.APPROVED)
                 .build();
     }
-
-
 }
+

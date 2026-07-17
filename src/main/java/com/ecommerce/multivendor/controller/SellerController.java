@@ -57,6 +57,17 @@ public class SellerController {
         ));
     }
 
+    /** Reapply after being rejected as a seller */
+    @PostMapping("/reapply")
+    public ResponseEntity<ApiResponse<UserResponse>> reapply(
+            @RequestBody UpdateSellerProfileRequest request) {
+        User seller = securityUtils.getCurrentUser();
+        return ResponseEntity.ok(ApiResponse.success(
+                "Reapplication submitted. An admin will review your profile.",
+                sellerService.reapplyAsSeller(seller, request)
+        ));
+    }
+
     // ─── Product Management ────────────────────────────────────────────────
 
     @GetMapping("/products")
