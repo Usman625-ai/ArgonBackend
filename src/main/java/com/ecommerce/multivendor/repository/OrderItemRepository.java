@@ -17,4 +17,6 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
            "AND oi.product.id = :productId AND oi.order.orderStatus = 'DELIVERED'")
     List<OrderItem> findDeliveredByCustomerAndProduct(@Param("customerId") Long customerId,
                                                        @Param("productId") Long productId);
+
+    boolean existsByProductId(Long productId);
 }

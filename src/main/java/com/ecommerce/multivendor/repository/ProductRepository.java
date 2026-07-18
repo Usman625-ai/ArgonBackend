@@ -19,6 +19,13 @@ import java.util.Optional;
 public interface ProductRepository extends JpaRepository<Product, Long>,
         JpaSpecificationExecutor<Product> {
 
+    @Query("SELECT p FROM Product p WHERE " +
+            "(:active IS NULL OR p.active = :active) AND " +
+            "(:q IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%',:q,'%')) " +
+            " OR LOWER(p.brand) LIKE LOWER(CONCAT('%',:q,'%')) " +
+            " OR LOWER(p.tags) LIKE LOWER(CONCAT('%',:q,'%')))")
+    Page<Product> findAllForAdmin(@Param("q") String q, @Param("active") Boolean active, Pageable pageable);
+
     @Modifying
     @Query("UPDATE Product p SET p.active = :active WHERE p.id = :id")
     int updateProductStatus(@Param("id") Long id, @Param("active") Boolean active);

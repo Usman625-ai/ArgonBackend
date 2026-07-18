@@ -7,10 +7,7 @@ import com.ecommerce.multivendor.entity.*;
 import com.ecommerce.multivendor.exception.BadRequestException;
 import com.ecommerce.multivendor.exception.ResourceNotFoundException;
 import com.ecommerce.multivendor.exception.UnauthorizedException;
-import com.ecommerce.multivendor.repository.CategoryRepository;
-import com.ecommerce.multivendor.repository.ProductImageRepository;
-import com.ecommerce.multivendor.repository.ProductRepository;
-import com.ecommerce.multivendor.repository.SiteSettingRepository;
+import com.ecommerce.multivendor.repository.*;
 import com.ecommerce.multivendor.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +33,7 @@ public class ProductService {
     private final CloudinaryService cloudinaryService;
     private final SiteSettingRepository siteSettingRepository;
     private final NotificationService notificationService;
+    private final OrderItemRepository orderItemRepository;   // ← add this line
 
     // ─── Public: Browse / Search ───────────────────────────────────────────
 
@@ -44,6 +42,14 @@ public class ProductService {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, Math.min(size, 100), sort);
         Page<Product> productPage = productRepository.findByActiveTrue(pageable);
+        return toPagedResponse(productPage);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<ProductResponse> getAdminProducts(String q, Boolean active, int page, int size) {
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100), Sort.by("createdAt").descending());
+        String query = (q != null && !q.isBlank()) ? q.trim() : null;
+        Page<Product> productPage = productRepository.findAllForAdmin(query, active, pageable);
         return toPagedResponse(productPage);
     }
 
@@ -228,16 +234,49 @@ public class ProductService {
         return toProductResponse(product);
     }
 
+    public ProductResponse toggleSellerProductStatus(Long productId, Long sellerId, boolean active) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
+        verifySellerOwnership(product, sellerId);
+        product.setActive(active);
+        Product updated = productRepository.save(product);
+        return toProductResponse(updated);
+    }
+
     public void deleteProduct(Long productId, Long sellerId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
         verifySellerOwnership(product, sellerId);
 
-        // Soft-delete: mark as inactive
+        List<ProductImage> images = productImageRepository.findByProductId(productId);
+        List<String> publicIds = images.stream()
+                .map(ProductImage::getPublicId)
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
+
+        boolean hasOrderHistory = orderItemRepository.existsByProductId(productId);
+
+        if (!hasOrderHistory) {
+            // Safe to permanently delete: no past orders reference this product.
+            if (!publicIds.isEmpty()) cloudinaryService.deleteImages(publicIds);
+            productRepository.delete(product); // cascades to images/reviews/cart items/wishlist entries
+            log.info("Product {} permanently deleted (with {} Cloudinary image(s)) by seller {}",
+                    productId, publicIds.size(), sellerId);
+            return;
+        }
+
+        // Product has order history — a hard delete would violate the required
+        // OrderItem -> Product foreign key and corrupt past order records.
+        // Archive it instead (deactivate + strip its images) so it disappears
+        // from the storefront and the seller's active product list, while
+        // preserving order history integrity.
+        if (!publicIds.isEmpty()) cloudinaryService.deleteImages(publicIds);
+        productImageRepository.deleteByProductId(productId);
         product.setActive(false);
         productRepository.save(product);
-        log.info("Product soft-deleted: {} by seller: {}", productId, sellerId);
+        log.info("Product {} has order history — archived (deactivated, images removed) instead of hard-deleted", productId);
     }
+
 
     public ProductResponse updateStock(Long productId, StockUpdateRequest request, Long sellerId) {
         Product product = productRepository.findById(productId)

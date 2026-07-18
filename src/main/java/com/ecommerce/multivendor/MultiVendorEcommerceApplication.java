@@ -17,4 +17,3 @@ public class MultiVendorEcommerceApplication {
         SpringApplication.run(MultiVendorEcommerceApplication.class, args);
     }
 }
-//        in admin,category creation layout is covering full page,in seller updating product show only parent categories not child category also in customer website products section is not looking good change that layout,also product deletion should delete product peramanently from database and its images at cloudinary also when a rejected seller reapplied send notification to admin also that this seller has reapplied review it

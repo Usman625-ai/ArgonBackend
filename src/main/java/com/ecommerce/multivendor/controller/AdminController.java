@@ -24,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
+    private final ProductService productService;
     private final NotificationService notificationService;
     private final SecurityUtils securityUtils;
     private final SiteSettingService siteSettingService;
@@ -220,6 +221,15 @@ public class AdminController {
             @PathVariable Long id,
             @Valid @RequestBody ProductStatusUpdateRequest request) {
         return ResponseEntity.ok(adminService.toggleProductStatus(id, request));
+    }
+
+    @GetMapping("/products")
+    public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getProducts(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success(productService.getAdminProducts(q, active, page, size)));
     }
 
     // ---- siteSettings ────────────────────────────────────────────────────────────────────────

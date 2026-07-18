@@ -73,10 +73,13 @@ public class SellerController {
     @GetMapping("/products")
     public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getProducts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "12") int size) {
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "false") boolean includeInactive) {
         User seller = securityUtils.getCurrentUser();
         return ResponseEntity.ok(ApiResponse.success(
-                productService.getAllSellerProducts(seller.getId(), page, size)
+                includeInactive
+                        ? productService.getAllSellerProducts(seller.getId(), page, size)
+                        : productService.getSellerProducts(seller.getId(), page, size)
         ));
     }
 
@@ -122,6 +125,18 @@ public class SellerController {
         User seller = securityUtils.getCurrentUser();
         return ResponseEntity.ok(ApiResponse.success(
                 "Stock updated", productService.updateStock(id, request, seller.getId())
+        ));
+    }
+
+    @PutMapping("/products/{id}/status")
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProductStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody ProductStatusUpdateRequest request) {
+        User seller = securityUtils.getCurrentUser();
+        boolean active = Boolean.TRUE.equals(request.getActive());
+        return ResponseEntity.ok(ApiResponse.success(
+                active ? "Product activated" : "Product deactivated",
+                productService.toggleSellerProductStatus(id, seller.getId(), active)
         ));
     }
 
