@@ -48,7 +48,9 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
     Page<Product> searchProducts(@Param("q") String q, Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND p.seller.active = true AND " +
-            "(:categoryId IS NULL OR p.category.id = :categoryId) AND " +
+            "(:categoryId IS NULL OR p.category.id = :categoryId " +
+            "  OR p.category.parent.id = :categoryId " +
+            "  OR p.category.parent.parent.id = :categoryId) AND " +
             "(:minPrice IS NULL OR p.price >= :minPrice) AND " +
             "(:maxPrice IS NULL OR p.price <= :maxPrice) AND " +
             "(:brand IS NULL OR LOWER(p.brand) = LOWER(:brand)) AND " +

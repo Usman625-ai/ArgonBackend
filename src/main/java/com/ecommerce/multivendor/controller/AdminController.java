@@ -4,7 +4,6 @@ import com.ecommerce.multivendor.dto.request.CouponRequest;
 import com.ecommerce.multivendor.dto.request.ProductStatusUpdateRequest;
 import com.ecommerce.multivendor.dto.request.SiteSettingUpdateRequest;
 import com.ecommerce.multivendor.dto.response.*;
-import com.ecommerce.multivendor.entity.Product;
 import com.ecommerce.multivendor.enums.SellerStatus;
 import com.ecommerce.multivendor.security.SecurityUtils;
 import com.ecommerce.multivendor.service.impl.*;
@@ -217,7 +216,7 @@ public class AdminController {
     // ---- products────────────────────────────────────────────────────────────────────────
 
     @PutMapping("/products/{id}/status")
-    public ResponseEntity<ApiResponse<Product>> updateProductStatus(
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProductStatus(
             @PathVariable Long id,
             @Valid @RequestBody ProductStatusUpdateRequest request) {
         return ResponseEntity.ok(adminService.toggleProductStatus(id, request));

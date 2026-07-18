@@ -22,12 +22,18 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Customer queries
     Page<Order> findByCustomerIdOrderByCreatedAtDesc(Long customerId, Pageable pageable);
+    Page<Order> findByCustomerIdAndOrderStatusOrderByCreatedAtDesc(Long customerId, OrderStatus orderStatus, Pageable pageable);
 
     // Seller queries
     Page<Order> findBySellerIdOrderByCreatedAtDesc(Long sellerId, Pageable pageable);
 
     // Admin queries
     Page<Order> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    // Coupon per-user usage count (excludes cancelled orders)
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.customer.id = :customerId " +
+            "AND o.couponCode = :couponCode AND o.orderStatus != 'CANCELLED'")
+    long countByCustomerIdAndCouponCode(@Param("customerId") Long customerId, @Param("couponCode") String couponCode);
 
     // Stats - platform-wide
     @Query("SELECT COUNT(o) FROM Order o WHERE o.orderStatus != 'CANCELLED'")

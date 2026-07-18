@@ -1,9 +1,7 @@
 package com.ecommerce.multivendor.service.impl;
 
 import com.ecommerce.multivendor.dto.request.ProductStatusUpdateRequest;
-import com.ecommerce.multivendor.dto.request.SystemSettingsRequest;
 import com.ecommerce.multivendor.dto.response.*;
-import com.ecommerce.multivendor.entity.GlobalSettings;
 import com.ecommerce.multivendor.entity.Product;
 import com.ecommerce.multivendor.entity.User;
 import com.ecommerce.multivendor.enums.NotificationType;
@@ -32,10 +30,10 @@ import java.util.Map;
 @Transactional
 public class AdminService {
 
-    private final GlobalSettingsRepository settingsRepo;
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
+    private final ProductService productService;   // ← add this line
     private final EmailService emailService;
     private final NotificationService notificationService;
 
@@ -45,17 +43,17 @@ public class AdminService {
     public DashboardStatsResponse getDashboardStats() {
 
         // ── User counts ────────────────────────────────────────────────
-        long totalCustomers     = userRepository.countByRole(Role.CUSTOMER);
-        long totalSellers       = userRepository.countByRole(Role.SELLER);
-        long approvedSellers    = userRepository.countByRoleAndSellerStatus(
+        long totalCustomers = userRepository.countByRole(Role.CUSTOMER);
+        long totalSellers = userRepository.countByRole(Role.SELLER);
+        long approvedSellers = userRepository.countByRoleAndSellerStatus(
                 Role.SELLER, SellerStatus.APPROVED);
-        long pendingApprovals   = userRepository.countByRoleAndSellerStatus(
+        long pendingApprovals = userRepository.countByRoleAndSellerStatus(
                 Role.SELLER, SellerStatus.PENDING);
 
         // ── Product & order counts ─────────────────────────────────────
-        long totalProducts  = productRepository.countByActiveTrue();
-        long totalOrders    = orderRepository.count();
-        long pendingOrders  = orderRepository.countActiveOrders();
+        long totalProducts = productRepository.countByActiveTrue();
+        long totalOrders = orderRepository.count();
+        long pendingOrders = orderRepository.countActiveOrders();
 
         // ── Revenue ────────────────────────────────────────────────────
         BigDecimal totalRevenue = orderRepository.calculateTotalRevenue();
@@ -82,13 +80,12 @@ public class AdminService {
                 .totalProducts(totalProducts)
                 .totalOrders(totalOrders)
                 .pendingOrders(pendingOrders)
-                .totalRevenue(totalRevenue   != null ? totalRevenue   : BigDecimal.ZERO)
+                .totalRevenue(totalRevenue != null ? totalRevenue : BigDecimal.ZERO)
                 .monthlyRevenue(monthlyRevenue != null ? monthlyRevenue : BigDecimal.ZERO)
-                .todayRevenue(todayRevenue   != null ? todayRevenue   : BigDecimal.ZERO)
+                .todayRevenue(todayRevenue != null ? todayRevenue : BigDecimal.ZERO)
                 .dailyRevenue(dailyRevenue)
                 .build();
     }
-
 
 
     // ─── Seller Management ─────────────────────────────────────────────────
@@ -222,7 +219,7 @@ public class AdminService {
     }
 
     @Transactional
-    public ApiResponse<Product> toggleProductStatus(Long productId, ProductStatusUpdateRequest request) {
+    public ApiResponse<ProductResponse> toggleProductStatus(Long productId, ProductStatusUpdateRequest request) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
 
@@ -233,24 +230,6 @@ public class AdminService {
                 ? "Product activated successfully"
                 : "Product deactivated successfully";
 
-        return ApiResponse.success(message, updated);
+        return ApiResponse.success(message, productService.toProductResponse(updated));
     }
-
-//    public SystemSettingsResponse getSettings() {
-//        GlobalSettings s = settingsRepo.findById(1L)
-//                .orElse(GlobalSettings.builder().id(1L).build());
-//        return SystemSettingsResponse.builder()
-//                .maintenanceMode()
-//                .allowSellerRegistration(s.isAllowSellerRegistration())
-//                .build();
-//    }
-//
-//    public SystemSettingsResponse updateSettings(SystemSettingsRequest req) {
-//        SystemSettings s = settingsRepo.findById(1L)
-//                .orElse(SystemSettings.builder().id(1L).build());
-//        if (req.getMaintenanceMode() != null) s.setMaintenanceMode(req.getMaintenanceMode());
-//        if (req.getAllowSellerRegistration() != null) s.setAllowSellerRegistration(req.getAllowSellerRegistration());
-//        settingsRepo.save(s);
-//        return getSettings();
-//    }
 }

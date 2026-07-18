@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -21,4 +22,10 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     @Modifying @Transactional
     @Query("UPDATE Coupon c SET c.usedCount = c.usedCount + 1 WHERE c.id = :id")
     void incrementUsedCount(@Param("id") Long id);
+
+    @Query("SELECT c FROM Coupon c WHERE c.active = true " +
+            "AND c.validFrom <= CURRENT_TIMESTAMP AND c.validUntil >= CURRENT_TIMESTAMP " +
+            "AND (c.usageLimit IS NULL OR c.usedCount < c.usageLimit) " +
+            "ORDER BY c.discountValue DESC")
+    List<Coupon> findAllCurrentlyValid();
 }

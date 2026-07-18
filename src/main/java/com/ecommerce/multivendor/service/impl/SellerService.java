@@ -175,12 +175,6 @@ public class SellerService {
                 "/seller/dashboard");
 
         log.info("Seller {} reapplied after rejection", seller.getId());
-        String name = seller.getName() != null ? seller.getName() : seller.getEmail();
-        notificationService.createNotification(seller,
-                "name " + name + " has reapplied as a seller. Please review their application.",
-                "Seller Reapplication Submitted",
-                com.ecommerce.multivendor.enums.NotificationType.GENERAL,
-                "/admin/dashboard");
         return adminService.toUserResponse(seller);
     }
 

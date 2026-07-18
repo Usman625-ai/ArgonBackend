@@ -108,7 +108,7 @@ public class OrderService {
 
         BigDecimal totalDiscount = BigDecimal.ZERO;
         if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
-            totalDiscount = couponService.applyCoupon(request.getCouponCode(), totalCartValue);
+            totalDiscount = couponService.applyCoupon(request.getCouponCode(), totalCartValue, customer.getId());
         }
 
         List<Order> createdOrders = new ArrayList<>();
@@ -312,9 +312,15 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public PagedResponse<OrderResponse> getCustomerOrders(Long customerId, int page, int size) {
+        return getCustomerOrders(customerId, page, size, null);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<OrderResponse> getCustomerOrders(Long customerId, int page, int size, OrderStatus status) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Order> orderPage = orderRepository
-                .findByCustomerIdOrderByCreatedAtDesc(customerId, pageable);
+        Page<Order> orderPage = status != null
+                ? orderRepository.findByCustomerIdAndOrderStatusOrderByCreatedAtDesc(customerId, status, pageable)
+                : orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId, pageable);
         return toPagedResponse(orderPage);
     }
 

@@ -9,6 +9,7 @@ import com.ecommerce.multivendor.enums.DiscountType;
 import com.ecommerce.multivendor.exception.BadRequestException;
 import com.ecommerce.multivendor.exception.ResourceNotFoundException;
 import com.ecommerce.multivendor.repository.CouponRepository;
+import com.ecommerce.multivendor.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +27,7 @@ import java.math.BigDecimal;
 public class CouponService {
 
     private final CouponRepository couponRepository;
+    private final OrderRepository orderRepository;
 
     // ─── Admin CRUD ────────────────────────────────────────────────────────
 
@@ -41,19 +44,19 @@ public class CouponService {
         }
 
         Coupon coupon = Coupon.builder()
-            .code(request.getCode().toUpperCase().trim())
-            .description(request.getDescription())
-            .discountType(request.getDiscountType())
-            .discountValue(request.getDiscountValue())
-            .minOrderValue(request.getMinOrderValue() != null
-                ? request.getMinOrderValue() : BigDecimal.ZERO)
-            .maxDiscount(request.getMaxDiscount())
-            .validFrom(request.getValidFrom().atStartOfDay())
-            .validUntil(request.getValidUntil().atTime(23, 59, 59))
-            .usageLimit(request.getUsageLimit())
-            .perUserLimit(request.getPerUserLimit())
-            .active(true)
-            .build();
+                .code(request.getCode().toUpperCase().trim())
+                .description(request.getDescription())
+                .discountType(request.getDiscountType())
+                .discountValue(request.getDiscountValue())
+                .minOrderValue(request.getMinOrderValue() != null
+                        ? request.getMinOrderValue() : BigDecimal.ZERO)
+                .maxDiscount(request.getMaxDiscount())
+                .validFrom(request.getValidFrom().atStartOfDay())
+                .validUntil(request.getValidUntil().atTime(23, 59, 59))
+                .usageLimit(request.getUsageLimit())
+                .perUserLimit(request.getPerUserLimit())
+                .active(true)
+                .build();
 
         coupon = couponRepository.save(coupon);
         log.info("Coupon created: {}", coupon.getCode());
@@ -64,40 +67,57 @@ public class CouponService {
     @Transactional(readOnly = true)
     public PagedResponse<CouponResponse> getAllCoupons(int page, int size) {
         Page<Coupon> couponPage = couponRepository
-            .findAllByOrderByCreatedAtDesc(PageRequest.of(page, size));
+                .findAllByOrderByCreatedAtDesc(PageRequest.of(page, size));
         return PagedResponse.<CouponResponse>builder()
-            .content(couponPage.getContent().stream()
-                .map(c -> toCouponResponse(c, null)).toList())
-            .pageNumber(couponPage.getNumber())
-            .pageSize(couponPage.getSize())
-            .totalElements(couponPage.getTotalElements())
-            .totalPages(couponPage.getTotalPages())
-            .last(couponPage.isLast())
-            .first(couponPage.isFirst())
-            .build();
+                .content(couponPage.getContent().stream()
+                        .map(c -> toCouponResponse(c, null)).toList())
+                .pageNumber(couponPage.getNumber())
+                .pageSize(couponPage.getSize())
+                .totalElements(couponPage.getTotalElements())
+                .totalPages(couponPage.getTotalPages())
+                .last(couponPage.isLast())
+                .first(couponPage.isFirst())
+                .build();
     }
 
     public void deleteCoupon(Long id) {
         Coupon coupon = couponRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Coupon", id));
+                .orElseThrow(() -> new ResourceNotFoundException("Coupon", id));
         coupon.setActive(false);
         couponRepository.save(coupon);
         log.info("Coupon deactivated: {}", coupon.getCode());
     }
 
+    // ─── Customer: Active coupons list (for cart/checkout dropdown) ────────
+
+    @Transactional(readOnly = true)
+    public List<CouponResponse> getActiveCoupons(BigDecimal orderAmount) {
+        List<Coupon> coupons = couponRepository.findAllCurrentlyValid();
+        return coupons.stream()
+                .map(c -> toCouponResponse(c,
+                        orderAmount != null ? c.calculateDiscount(orderAmount) : null))
+                .toList();
+    }
+
     // ─── Customer: Validate & Apply ────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public CouponResponse validateCoupon(CouponValidateRequest request) {
+    public CouponResponse validateCoupon(CouponValidateRequest request, Long customerId) {
         Coupon coupon = couponRepository.findByCode(request.getCouponCode().toUpperCase())
-            .orElseThrow(() -> new BadRequestException("Invalid coupon code"));
+                .orElseThrow(() -> new BadRequestException("Invalid coupon code"));
 
         if (!coupon.isValid()) {
             throw new BadRequestException("Coupon is expired or no longer valid");
         }
         if (request.getOrderAmount().compareTo(coupon.getMinOrderValue()) < 0) {
             throw new BadRequestException("Minimum order value of ₹"
-                + coupon.getMinOrderValue() + " required for this coupon");
+                    + coupon.getMinOrderValue() + " required for this coupon");
+        }
+        if (customerId != null && coupon.getPerUserLimit() > 0) {
+            long usedByUser = orderRepository.countByCustomerIdAndCouponCode(customerId, coupon.getCode());
+            if (usedByUser >= coupon.getPerUserLimit()) {
+                throw new BadRequestException("You've already used this coupon the maximum number of times");
+            }
         }
 
         BigDecimal discount = coupon.calculateDiscount(request.getOrderAmount());
@@ -108,14 +128,20 @@ public class CouponService {
      * Apply coupon to an order - increment usage count.
      * Must be called within an order creation transaction.
      */
-    public BigDecimal applyCoupon(String couponCode, BigDecimal orderAmount) {
+    public BigDecimal applyCoupon(String couponCode, BigDecimal orderAmount, Long customerId) {
         if (couponCode == null || couponCode.isBlank()) return BigDecimal.ZERO;
 
         Coupon coupon = couponRepository.findByCode(couponCode.toUpperCase())
-            .orElseThrow(() -> new BadRequestException("Invalid coupon code: " + couponCode));
+                .orElseThrow(() -> new BadRequestException("Invalid coupon code: " + couponCode));
 
         if (!coupon.isValid()) {
             throw new BadRequestException("Coupon is no longer valid");
+        }
+        if (customerId != null && coupon.getPerUserLimit() > 0) {
+            long usedByUser = orderRepository.countByCustomerIdAndCouponCode(customerId, coupon.getCode());
+            if (usedByUser >= coupon.getPerUserLimit()) {
+                throw new BadRequestException("You've already used this coupon the maximum number of times");
+            }
         }
 
         BigDecimal discount = coupon.calculateDiscount(orderAmount);
@@ -128,20 +154,20 @@ public class CouponService {
 
     private CouponResponse toCouponResponse(Coupon coupon, BigDecimal applicableDiscount) {
         return CouponResponse.builder()
-            .id(coupon.getId())
-            .code(coupon.getCode())
-            .description(coupon.getDescription())
-            .discountType(coupon.getDiscountType())
-            .discountValue(coupon.getDiscountValue())
-            .minOrderValue(coupon.getMinOrderValue())
-            .maxDiscount(coupon.getMaxDiscount())
-            .validFrom(coupon.getValidFrom())
-            .validUntil(coupon.getValidUntil())
-            .usageLimit(coupon.getUsageLimit())
-            .usedCount(coupon.getUsedCount())
-            .active(coupon.isActive())
-            .valid(coupon.isValid())
-            .applicableDiscount(applicableDiscount)
-            .build();
+                .id(coupon.getId())
+                .code(coupon.getCode())
+                .description(coupon.getDescription())
+                .discountType(coupon.getDiscountType())
+                .discountValue(coupon.getDiscountValue())
+                .minOrderValue(coupon.getMinOrderValue())
+                .maxDiscount(coupon.getMaxDiscount())
+                .validFrom(coupon.getValidFrom())
+                .validUntil(coupon.getValidUntil())
+                .usageLimit(coupon.getUsageLimit())
+                .usedCount(coupon.getUsedCount())
+                .active(coupon.isActive())
+                .valid(coupon.isValid())
+                .applicableDiscount(applicableDiscount)
+                .build();
     }
 }

@@ -50,8 +50,8 @@ public class CustomerController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-            productService.searchProducts(q, categoryId, minPrice, maxPrice,
-                brand, sortBy, sortDir, page, size)
+                productService.searchProducts(q, categoryId, minPrice, maxPrice,
+                        brand, sortBy, sortDir, page, size)
         ));
     }
 
@@ -78,14 +78,14 @@ public class CustomerController {
             @Valid @RequestBody CartRequest request) {
         User customer = securityUtils.getCurrentUser();
         return ResponseEntity.ok(ApiResponse.success(
-            "Added to cart", cartService.addToCart(customer, request)
+                "Added to cart", cartService.addToCart(customer, request)
         ));
     }
 
     @GetMapping("/cart")
     public ResponseEntity<ApiResponse<CartResponse>> getCart() {
         return ResponseEntity.ok(ApiResponse.success(
-            cartService.getCart(securityUtils.getCurrentUserId())
+                cartService.getCart(securityUtils.getCurrentUserId())
         ));
     }
 
@@ -94,16 +94,16 @@ public class CustomerController {
             @PathVariable Long itemId,
             @RequestParam int quantity) {
         return ResponseEntity.ok(ApiResponse.success(
-            "Cart updated",
-            cartService.updateCartItem(itemId, quantity, securityUtils.getCurrentUserId())
+                "Cart updated",
+                cartService.updateCartItem(itemId, quantity, securityUtils.getCurrentUserId())
         ));
     }
 
     @DeleteMapping("/cart/{itemId}")
     public ResponseEntity<ApiResponse<CartResponse>> removeFromCart(@PathVariable Long itemId) {
         return ResponseEntity.ok(ApiResponse.success(
-            "Item removed",
-            cartService.removeFromCart(itemId, securityUtils.getCurrentUserId())
+                "Item removed",
+                cartService.removeFromCart(itemId, securityUtils.getCurrentUserId())
         ));
     }
 
@@ -130,23 +130,24 @@ public class CustomerController {
         User customer = securityUtils.getCurrentUser();
         List<OrderResponse> orders = orderService.checkout(request, customer);
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Order placed successfully! " +
-                orders.size() + " order(s) created.", orders));
+                .body(ApiResponse.success("Order placed successfully! " +
+                        orders.size() + " order(s) created.", orders));
     }
 
     @GetMapping("/orders")
     public ResponseEntity<ApiResponse<PagedResponse<OrderResponse>>> getOrders(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) com.ecommerce.multivendor.enums.OrderStatus status) {
         return ResponseEntity.ok(ApiResponse.success(
-            orderService.getCustomerOrders(securityUtils.getCurrentUserId(), page, size)
+                orderService.getCustomerOrders(securityUtils.getCurrentUserId(), page, size, status)
         ));
     }
 
     @GetMapping("/orders/{id}")
     public ResponseEntity<ApiResponse<OrderResponse>> getOrder(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(
-            orderService.getCustomerOrder(id, securityUtils.getCurrentUserId())
+                orderService.getCustomerOrder(id, securityUtils.getCurrentUserId())
         ));
     }
 
@@ -156,8 +157,8 @@ public class CustomerController {
             @RequestBody(required = false) java.util.Map<String, String> body) {
         String reason = body != null ? body.getOrDefault("reason", null) : null;
         return ResponseEntity.ok(ApiResponse.success(
-            "Order cancelled",
-            orderService.cancelOrder(id, securityUtils.getCurrentUserId(), reason)
+                "Order cancelled",
+                orderService.cancelOrder(id, securityUtils.getCurrentUserId(), reason)
         ));
     }
 
@@ -170,8 +171,8 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<PaymentOrderResponse>> initiatePayment(
             @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(
-            "JazzCash payment initiated. Submit the form to hostedPageUrl.",
-            orderService.initiatePayment(id, securityUtils.getCurrentUserId())
+                "JazzCash payment initiated. Submit the form to hostedPageUrl.",
+                orderService.initiatePayment(id, securityUtils.getCurrentUserId())
         ));
     }
 
@@ -185,8 +186,8 @@ public class CustomerController {
             @PathVariable Long id,
             @Valid @RequestBody PaymentVerifyRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
-            "Payment verified and order confirmed.",
-            orderService.verifyAndConfirmPayment(id, request, securityUtils.getCurrentUserId())
+                "Payment verified and order confirmed.",
+                orderService.verifyAndConfirmPayment(id, request, securityUtils.getCurrentUserId())
         ));
     }
 
@@ -197,7 +198,7 @@ public class CustomerController {
             @Valid @RequestBody ReviewRequest request) {
         User customer = securityUtils.getCurrentUser();
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Review submitted", reviewService.addReview(request, customer)));
+                .body(ApiResponse.success("Review submitted", reviewService.addReview(request, customer)));
     }
 
     @GetMapping("/products/{productId}/reviews")
@@ -206,7 +207,7 @@ public class CustomerController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-            reviewService.getProductReviews(productId, page, size)
+                reviewService.getProductReviews(productId, page, size)
         ));
     }
 
@@ -217,7 +218,7 @@ public class CustomerController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-            wishlistService.getWishlist(securityUtils.getCurrentUserId(), page, size)
+                wishlistService.getWishlist(securityUtils.getCurrentUserId(), page, size)
         ));
     }
 
@@ -238,7 +239,7 @@ public class CustomerController {
     @GetMapping("/addresses")
     public ResponseEntity<ApiResponse<List<AddressResponse>>> getAddresses() {
         return ResponseEntity.ok(ApiResponse.success(
-            addressService.getAddresses(securityUtils.getCurrentUserId())
+                addressService.getAddresses(securityUtils.getCurrentUserId())
         ));
     }
 
@@ -247,7 +248,7 @@ public class CustomerController {
             @Valid @RequestBody AddressRequest request) {
         User customer = securityUtils.getCurrentUser();
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Address added", addressService.addAddress(request, customer)));
+                .body(ApiResponse.success("Address added", addressService.addAddress(request, customer)));
     }
 
     @PutMapping("/addresses/{id}")
@@ -255,8 +256,8 @@ public class CustomerController {
             @PathVariable Long id,
             @Valid @RequestBody AddressRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
-            "Address updated",
-            addressService.updateAddress(id, request, securityUtils.getCurrentUserId())
+                "Address updated",
+                addressService.updateAddress(id, request, securityUtils.getCurrentUserId())
         ));
     }
 
@@ -268,11 +269,19 @@ public class CustomerController {
 
     // Coupons
 
+    @GetMapping("/coupons/active")
+    public ResponseEntity<ApiResponse<List<CouponResponse>>> getActiveCoupons(
+            @RequestParam(required = false) java.math.BigDecimal orderAmount) {
+        return ResponseEntity.ok(ApiResponse.success(
+                couponService.getActiveCoupons(orderAmount)
+        ));
+    }
+
     @PostMapping("/coupons/validate")
     public ResponseEntity<ApiResponse<CouponResponse>> validateCoupon(
             @Valid @RequestBody CouponValidateRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
-            "Coupon is valid", couponService.validateCoupon(request)
+                "Coupon is valid", couponService.validateCoupon(request, securityUtils.getCurrentUserId())
         ));
     }
 
@@ -288,16 +297,16 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<UserResponse>> getProfile() {
         User customer = securityUtils.getCurrentUser();
         return ResponseEntity.ok(ApiResponse.success(UserResponse.builder()
-            .id(customer.getId())
-            .name(customer.getName())
-            .email(customer.getEmail())
-            .role(customer.getRole())
-            .active(customer.isActive())
-            .verified(customer.isVerified())
-            .contactNumber(customer.getContactNumber())
-            .profileImage(customer.getProfileImage())
-            .createdAt(customer.getCreatedAt())
-            .build()));
+                .id(customer.getId())
+                .name(customer.getName())
+                .email(customer.getEmail())
+                .role(customer.getRole())
+                .active(customer.isActive())
+                .verified(customer.isVerified())
+                .contactNumber(customer.getContactNumber())
+                .profileImage(customer.getProfileImage())
+                .createdAt(customer.getCreatedAt())
+                .build()));
     }
 
     @PutMapping("/profile")
@@ -309,14 +318,14 @@ public class CustomerController {
         if (request.getProfileImage()  != null) customer.setProfileImage(request.getProfileImage());
         userRepository.save(customer);                      // ← persisted properly
         return ResponseEntity.ok(ApiResponse.success("Profile updated",
-            UserResponse.builder()
-                .id(customer.getId()).name(customer.getName())
-                .email(customer.getEmail()).role(customer.getRole())
-                .active(customer.isActive()).verified(customer.isVerified())
-                .contactNumber(customer.getContactNumber())
-                .profileImage(customer.getProfileImage())
-                .createdAt(customer.getCreatedAt())
-                .build()));
+                UserResponse.builder()
+                        .id(customer.getId()).name(customer.getName())
+                        .email(customer.getEmail()).role(customer.getRole())
+                        .active(customer.isActive()).verified(customer.isVerified())
+                        .contactNumber(customer.getContactNumber())
+                        .profileImage(customer.getProfileImage())
+                        .createdAt(customer.getCreatedAt())
+                        .build()));
     }
 
     // Notifications
@@ -326,14 +335,14 @@ public class CustomerController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-            notificationService.getNotifications(securityUtils.getCurrentUserId(), page, size)
+                notificationService.getNotifications(securityUtils.getCurrentUserId(), page, size)
         ));
     }
 
     @GetMapping("/notifications/unread-count")
     public ResponseEntity<ApiResponse<Long>> getUnreadCount() {
         return ResponseEntity.ok(ApiResponse.success(
-            notificationService.getUnreadCount(securityUtils.getCurrentUserId())
+                notificationService.getUnreadCount(securityUtils.getCurrentUserId())
         ));
     }
 
