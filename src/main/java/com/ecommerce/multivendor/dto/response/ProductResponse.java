@@ -29,6 +29,7 @@ public class ProductResponse {
     private int totalReviews;
     private int totalSold;
     private boolean active;
+    private boolean adminLocked;
     private boolean featured;
     private Long categoryId;
     private String categoryName;

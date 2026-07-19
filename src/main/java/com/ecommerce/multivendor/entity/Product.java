@@ -58,6 +58,9 @@ public class Product {
 
     private String brand;
 
+    @Column(name = "admin_locked", nullable = false)
+    private boolean adminLocked = false;
+
     // Stored as JSON string: ["tag1", "tag2"]
     @Column(columnDefinition = "JSON")
     private String tags;

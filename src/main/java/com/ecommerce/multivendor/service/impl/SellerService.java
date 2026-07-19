@@ -164,6 +164,7 @@ public class SellerService {
         if (request.getBankIfsc()          != null) seller.setBankIfsc(request.getBankIfsc());
         if (request.getBankName()          != null) seller.setBankName(request.getBankName());
 
+
         seller.setSellerStatus(SellerStatus.PENDING);
         seller.setRejectionReason(null);
         userRepository.save(seller);
@@ -174,6 +175,16 @@ public class SellerService {
                 com.ecommerce.multivendor.enums.NotificationType.GENERAL,
                 "/seller/dashboard");
 
+// Notify all admins so the reapplication gets reviewed, mirroring the
+// notification sent for a brand-new seller registration.
+        final String shopName = seller.getShopName();
+        final String sellerEmail = seller.getEmail();
+        userRepository.findByRole(com.ecommerce.multivendor.enums.Role.ADMIN).forEach(admin ->
+                notificationService.createNotification(admin,
+                        shopName + " (" + sellerEmail + ") was previously rejected and has reapplied — please review.",
+                        "Seller Reapplication Pending Review",
+                        com.ecommerce.multivendor.enums.NotificationType.GENERAL,
+                        "/admin/sellers"));
         log.info("Seller {} reapplied after rejection", seller.getId());
         return adminService.toUserResponse(seller);
     }

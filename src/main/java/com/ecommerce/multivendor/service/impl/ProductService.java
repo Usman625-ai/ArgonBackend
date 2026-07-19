@@ -238,8 +238,18 @@ public class ProductService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
         verifySellerOwnership(product, sellerId);
+
+        if (active && product.isAdminLocked()) {
+            throw new BadRequestException(
+                    "This product was deactivated by an admin and can only be reactivated by an admin.");
+        }
+
         product.setActive(active);
+        // A seller-initiated deactivation is never admin-locked, so it stays
+        // freely re-activatable by the seller themselves.
+        if (!active) product.setAdminLocked(false);
         Product updated = productRepository.save(product);
+        log.info("Product {} {} by seller {}", productId, active ? "activated" : "deactivated", sellerId);
         return toProductResponse(updated);
     }
 
@@ -401,6 +411,7 @@ public class ProductService {
                 .totalReviews(product.getTotalReviews())
                 .totalSold(product.getTotalSold())
                 .active(product.isActive())
+                .adminLocked(product.isAdminLocked())
                 .featured(product.isFeatured())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())

@@ -223,10 +223,14 @@ public class AdminService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
 
-        product.setActive(request.getActive());
+        boolean active = Boolean.TRUE.equals(request.getActive());
+        product.setActive(active);
+        // Deactivating via admin locks it so only admin can bring it back;
+        // (re)activating via admin always clears the lock.
+        product.setAdminLocked(!active);
         Product updated = productRepository.save(product);
 
-        String message = Boolean.TRUE.equals(request.getActive())
+        String message = active
                 ? "Product activated successfully"
                 : "Product deactivated successfully";
 
