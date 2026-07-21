@@ -127,15 +127,19 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(12);
     }
 
+    // Comma-separated list of allowed origins, injected from the
+    // ALLOWED_ORIGINS env var (see application.properties). Defaults to
+    // local dev ports so `mvn spring-boot:run` still works out of the box.
+    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins}")
+    private String allowedOrigins;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000",
-                "http://localhost:5173",
-                "http://localhost:4173",
-                "http://localhost:8080",
-                "http://localhost:8081",
-                "https://yourdomain.com"));
+        config.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList());
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept",
                 "X-Requested-With", "Origin"));

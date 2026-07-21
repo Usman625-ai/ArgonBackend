@@ -11,6 +11,7 @@ import com.ecommerce.multivendor.repository.*;
 import com.ecommerce.multivendor.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,7 +20,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +33,7 @@ public class ProductService {
     private final CloudinaryService cloudinaryService;
     private final SiteSettingRepository siteSettingRepository;
     private final NotificationService notificationService;
-    private final OrderItemRepository orderItemRepository;   // ← add this line
+    private final OrderItemRepository orderItemRepository;
 
     // ─── Public: Browse / Search ───────────────────────────────────────────
 
@@ -87,6 +87,7 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable("brands")
     public List<String> getAllBrands() {
         return productRepository.findAllBrands();
     }
@@ -485,28 +486,28 @@ public class ProductService {
                 : Sort.by(column).descending();
     }
 
-//    Featured product
-@Transactional(readOnly = true)
-public ApiResponse<List<FeaturedProductResponse>> getFeaturedProducts(Integer limit) {
-    List<Product> products;
+    //    Featured product
+    @Transactional(readOnly = true)
+    public ApiResponse<List<FeaturedProductResponse>> getFeaturedProducts(Integer limit) {
+        List<Product> products;
 
-    if (limit != null && limit > 0) {
-        Pageable pageable = PageRequest.of(0, limit);
-        products = productRepository.findFeaturedProducts(pageable).getContent();
-    } else {
-        products = productRepository.findFeaturedProducts();
+        if (limit != null && limit > 0) {
+            Pageable pageable = PageRequest.of(0, limit);
+            products = productRepository.findFeaturedProducts(pageable).getContent();
+        } else {
+            products = productRepository.findFeaturedProducts();
+        }
+
+        String currencySymbol = siteSettingRepository.findTopByOrderByIdAsc()
+                .map(SiteSetting::getCurrencySymbol)
+                .orElse("PKR");
+
+        List<FeaturedProductResponse> response = products.stream()
+                .map(p -> mapToFeaturedResponse(p, currencySymbol))
+                .toList();
+
+        return ApiResponse.success("Featured products retrieved successfully", response);
     }
-
-    String currencySymbol = siteSettingRepository.findTopByOrderByIdAsc()
-            .map(SiteSetting::getCurrencySymbol)
-            .orElse("PKR");
-
-    List<FeaturedProductResponse> response = products.stream()
-            .map(p -> mapToFeaturedResponse(p, currencySymbol))
-            .toList();
-
-    return ApiResponse.success("Featured products retrieved successfully", response);
-}
 
     private FeaturedProductResponse mapToFeaturedResponse(Product p, String currencySymbol) {
         return FeaturedProductResponse.builder()
