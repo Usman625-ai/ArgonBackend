@@ -89,12 +89,12 @@ public class PaymentCallbackController {
         // Redirect customer to frontend order page
         String orderNum = result.getOrderNumber();
         String location = result.isSuccess()
-            ? frontendUrl + "/orders?payment=success&ref=" + orderNum
-            : frontendUrl + "/orders?payment=failed&ref=" + orderNum;
+                ? frontendUrl + "/orders?payment=success&ref=" + orderNum
+                : frontendUrl + "/orders?payment=failed&ref=" + orderNum;
 
         return ResponseEntity.status(302)
-            .header("Location", location)
-            .build();
+                .header("Location", location)
+                .build();
     }
 
     // 2.  Manual Verify (Frontend → Our Backend)
@@ -118,36 +118,39 @@ public class PaymentCallbackController {
         orderService.processJazzCashCallback(result);
 
         String msg = result.isSuccess()
-            ? "Payment verified successfully"
-            : "Payment verification failed: " + result.getResponseMessage();
+                ? "Payment verified successfully"
+                : "Payment verification failed: " + result.getResponseMessage();
 
         return ResponseEntity.ok(ApiResponse.<JazzCashCallbackResponse>builder()
-            .success(result.isSuccess())
-            .message(msg)
-            .data(result)
-            .build());
+                .success(result.isSuccess())
+                .message(msg)
+                .data(result)
+                .build());
     }
 
     // 3.  Hash Test Utility (DEV only — remove in production)
 
     /**
      * Utility endpoint to test your secure hash computation.
-     * Remove or secure this endpoint in production.
+     * SECURED: admin-only. This is not in SecurityConfig's PUBLIC_URLS, and is
+     * additionally locked down here so it can never be reached without a valid
+     * ADMIN JWT, even if the public URL list is edited in the future.
 
      * POST /api/payments/jazzcash/test-hash
      * Body: { "pp_Amount": "150000", "pp_TxnRefNo": "T2024001", ... }
      */
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/test-hash")
     public ResponseEntity<ApiResponse<Map<String, String>>> testHash(
             @RequestBody Map<String, String> params) {
         try {
             String hash = paymentService.computeSecureHash(params);
             return ResponseEntity.ok(ApiResponse.success(
-                Map.of("pp_SecureHash", hash, "paramsUsed", params.toString())
+                    Map.of("pp_SecureHash", hash, "paramsUsed", params.toString())
             ));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
-                .body(ApiResponse.error("Hash error: " + e.getMessage()));
+                    .body(ApiResponse.error("Hash error: " + e.getMessage()));
         }
     }
 
@@ -169,10 +172,10 @@ public class PaymentCallbackController {
         Map<String, String> masked = new HashMap<>(params);
         masked.replaceAll((k, v) -> {
             if (k.equalsIgnoreCase("pp_Password") ||
-                k.equalsIgnoreCase("pp_SecureHash")) {
+                    k.equalsIgnoreCase("pp_SecureHash")) {
                 return v != null && v.length() > 8
-                    ? v.substring(0, 4) + "****" + v.substring(v.length() - 4)
-                    : "****";
+                        ? v.substring(0, 4) + "****" + v.substring(v.length() - 4)
+                        : "****";
             }
             return v;
         });

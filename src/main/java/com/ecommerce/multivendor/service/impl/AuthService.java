@@ -2,6 +2,7 @@ package com.ecommerce.multivendor.service.impl;
 
 import com.ecommerce.multivendor.dto.request.*;
 import com.ecommerce.multivendor.dto.response.AuthResponse;
+import com.ecommerce.multivendor.entity.ChangePasswordOtp;
 import com.ecommerce.multivendor.entity.PasswordResetToken;
 import com.ecommerce.multivendor.entity.PendingRegistration;
 import com.ecommerce.multivendor.entity.User;
@@ -9,6 +10,7 @@ import com.ecommerce.multivendor.enums.Role;
 import com.ecommerce.multivendor.enums.SellerStatus;
 import com.ecommerce.multivendor.exception.BadRequestException;
 import com.ecommerce.multivendor.exception.ResourceNotFoundException;
+import com.ecommerce.multivendor.repository.ChangePasswordOtpRepository;
 import com.ecommerce.multivendor.repository.PasswordResetTokenRepository;
 import com.ecommerce.multivendor.repository.PendingRegistrationRepository;
 import com.ecommerce.multivendor.repository.UserRepository;
@@ -35,6 +37,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PendingRegistrationRepository pendingRegistrationRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final ChangePasswordOtpRepository changePasswordOtpRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
@@ -220,26 +223,28 @@ public class AuthService {
     // ─── Forgot Password ───────────────────────────────────────────────────
 
     public void forgotPassword(ForgotPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail().toLowerCase().trim())
-                .orElseThrow(() -> new ResourceNotFoundException("No account found with this email"));
+        // SECURITY: do not reveal whether an account exists for this email.
+        // Always return normally; only actually send an email if the user exists.
+        userRepository.findByEmail(request.getEmail().toLowerCase().trim())
+                .ifPresent(user -> {
+                    passwordResetTokenRepository.findByUserIdAndUsedFalse(user.getId())
+                            .ifPresent(t -> {
+                                t.setUsed(true);
+                                passwordResetTokenRepository.save(t);
+                            });
 
-        passwordResetTokenRepository.findByUserIdAndUsedFalse(user.getId())
-                .ifPresent(t -> {
-                    t.setUsed(true);
-                    passwordResetTokenRepository.save(t);
+                    String token = UUID.randomUUID().toString();
+                    PasswordResetToken resetToken = PasswordResetToken.builder()
+                            .token(token)
+                            .user(user)
+                            .expiryDate(LocalDateTime.now().plusHours(24))
+                            .used(false)
+                            .build();
+
+                    passwordResetTokenRepository.save(resetToken);
+                    emailService.sendPasswordResetEmail(user, token);
+                    log.info("Password reset email sent to: {}", user.getEmail());
                 });
-
-        String token = UUID.randomUUID().toString();
-        PasswordResetToken resetToken = PasswordResetToken.builder()
-                .token(token)
-                .user(user)
-                .expiryDate(LocalDateTime.now().plusHours(24))
-                .used(false)
-                .build();
-
-        passwordResetTokenRepository.save(resetToken);
-        emailService.sendPasswordResetEmail(user, token);
-        log.info("Password reset email sent to: {}", user.getEmail());
     }
 
     // ─── Reset Password ────────────────────────────────────────────────────
@@ -266,8 +271,35 @@ public class AuthService {
         log.info("Password reset successfully for: {}", user.getEmail());
     }
 
-    // ─── Change Password ───────────────────────────────────────────────────
+    // ─── Change Password (OTP-protected) ───────────────────────────────────
 
+    /** Step 1: verify current password, then email a 6-digit OTP the user must supply to actually change it. */
+    public void requestChangePasswordOtp(User currentUser, ChangePasswordOtpRequest request) {
+        if (!passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        ChangePasswordOtp existing = changePasswordOtpRepository.findByUserId(currentUser.getId()).orElse(null);
+        if (existing != null && existing.getLastSentAt() != null) {
+            long secondsSinceLast = java.time.Duration.between(existing.getLastSentAt(), LocalDateTime.now()).getSeconds();
+            if (secondsSinceLast < OTP_RESEND_COOLDOWN_SECONDS) {
+                long wait = OTP_RESEND_COOLDOWN_SECONDS - secondsSinceLast;
+                throw new BadRequestException("Please wait " + wait + " second(s) before requesting a new OTP.");
+            }
+        }
+
+        String otp = OtpGenerator.generateOtp(6);
+        ChangePasswordOtp entity = existing != null ? existing : ChangePasswordOtp.builder().user(currentUser).build();
+        entity.setOtpHash(passwordEncoder.encode(otp));
+        entity.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        entity.setLastSentAt(LocalDateTime.now());
+        changePasswordOtpRepository.save(entity);
+
+        emailService.sendChangePasswordOtpEmail(currentUser.getEmail(), currentUser.getName(), otp);
+        log.info("Change-password OTP sent for user: {}", currentUser.getEmail());
+    }
+
+    /** Step 2: verify current password again + the OTP, then actually update the password. */
     public void changePassword(User currentUser, ChangePasswordRequest request) {
         if (!passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
             throw new BadRequestException("Current password is incorrect");
@@ -276,8 +308,21 @@ public class AuthService {
             throw new BadRequestException("New password must be different from current password");
         }
 
+        ChangePasswordOtp otpEntity = changePasswordOtpRepository.findByUserId(currentUser.getId())
+                .orElseThrow(() -> new BadRequestException("No OTP was requested. Please request an OTP first."));
+
+        if (otpEntity.isExpired()) {
+            throw new BadRequestException("OTP has expired. Please request a new one.");
+        }
+        if (!passwordEncoder.matches(request.getOtp(), otpEntity.getOtpHash())) {
+            throw new BadRequestException("Invalid OTP");
+        }
+
         currentUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(currentUser);
+
+        changePasswordOtpRepository.deleteByUserId(currentUser.getId());
+
         log.info("Password changed for user: {}", currentUser.getEmail());
     }
 
@@ -298,4 +343,6 @@ public class AuthService {
                 .build();
     }
 }
+
+
 

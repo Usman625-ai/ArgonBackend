@@ -51,12 +51,12 @@ public class EmailService {
     public void sendVerificationOtp(User user, String otp) {
         String subject = "Verify Your Email - " + fromName;
         String body = buildEmailTemplate(
-            "Email Verification",
-            "Hi " + user.getName() + ",",
-            "Your email verification OTP is:",
-            "<h1 style='color:#6366f1;letter-spacing:8px;'>" + otp + "</h1>",
-            "This OTP will expire in 10 minutes. Do not share it with anyone.",
-            null, null
+                "Email Verification",
+                "Hi " + user.getName() + ",",
+                "Your email verification OTP is:",
+                "<h1 style='color:#6366f1;letter-spacing:8px;'>" + otp + "</h1>",
+                "This OTP will expire in 10 minutes. Do not share it with anyone.",
+                null, null
         );
         sendEmail(user.getEmail(), subject, body);
     }
@@ -67,12 +67,12 @@ public class EmailService {
         String resetLink = frontendUrl + "/reset-password?token=" + token;
         String subject = "Reset Your Password - " + fromName;
         String body = buildEmailTemplate(
-            "Password Reset Request",
-            "Hi " + user.getName() + ",",
-            "Click the button below to reset your password:",
-            null,
-            "This link will expire in 24 hours. If you didn't request this, ignore this email.",
-            resetLink, "Reset Password"
+                "Password Reset Request",
+                "Hi " + user.getName() + ",",
+                "Click the button below to reset your password:",
+                null,
+                "This link will expire in 24 hours. If you didn't request this, ignore this email.",
+                resetLink, "Reset Password"
         );
         sendEmail(user.getEmail(), subject, body);
     }
@@ -83,12 +83,12 @@ public class EmailService {
         String subject = "Order Confirmed #" + order.getOrderNumber();
         String content = buildOrderSummaryHtml(order);
         String body = buildEmailTemplate(
-            "Order Confirmed! 🎉",
-            "Hi " + order.getCustomer().getName() + ",",
-            "Your order has been placed successfully.",
-            content,
-            "We'll notify you when your order is shipped.",
-            frontendUrl + "/orders/" + order.getId(), "Track Order"
+                "Order Confirmed! 🎉",
+                "Hi " + order.getCustomer().getName() + ",",
+                "Your order has been placed successfully.",
+                content,
+                "We'll notify you when your order is shipped.",
+                frontendUrl + "/orders/" + order.getId(), "Track Order"
         );
         sendEmail(order.getCustomer().getEmail(), subject, body);
     }
@@ -98,16 +98,16 @@ public class EmailService {
     public void sendOrderShipped(Order order) {
         String subject = "Your Order is on the Way! 🚚 #" + order.getOrderNumber();
         String body = buildEmailTemplate(
-            "Order Shipped!",
-            "Hi " + order.getCustomer().getName() + ",",
-            "Great news! Your order has been shipped.",
-            order.getTrackingNumber() != null
-                ? "<p>Tracking Number: <strong>" + order.getTrackingNumber() + "</strong></p>"
-                : null,
-            "Estimated delivery: " + (order.getEstimatedDeliveryDate() != null
-                ? order.getEstimatedDeliveryDate().toLocalDate().toString()
-                : "3-5 business days"),
-            frontendUrl + "/orders/" + order.getId(), "Track Order"
+                "Order Shipped!",
+                "Hi " + order.getCustomer().getName() + ",",
+                "Great news! Your order has been shipped.",
+                order.getTrackingNumber() != null
+                        ? "<p>Tracking Number: <strong>" + order.getTrackingNumber() + "</strong></p>"
+                        : null,
+                "Estimated delivery: " + (order.getEstimatedDeliveryDate() != null
+                        ? order.getEstimatedDeliveryDate().toLocalDate().toString()
+                        : "3-5 business days"),
+                frontendUrl + "/orders/" + order.getId(), "Track Order"
         );
         sendEmail(order.getCustomer().getEmail(), subject, body);
     }
@@ -117,12 +117,12 @@ public class EmailService {
     public void sendOrderDelivered(Order order) {
         String subject = "Order Delivered! #" + order.getOrderNumber();
         String body = buildEmailTemplate(
-            "Order Delivered! ✅",
-            "Hi " + order.getCustomer().getName() + ",",
-            "Your order has been delivered successfully. We hope you love it!",
-            null,
-            "Please leave a review to help other shoppers.",
-            frontendUrl + "/orders/" + order.getId(), "Leave a Review"
+                "Order Delivered! ✅",
+                "Hi " + order.getCustomer().getName() + ",",
+                "Your order has been delivered successfully. We hope you love it!",
+                null,
+                "Please leave a review to help other shoppers.",
+                frontendUrl + "/orders/" + order.getId(), "Leave a Review"
         );
         sendEmail(order.getCustomer().getEmail(), subject, body);
     }
@@ -132,12 +132,12 @@ public class EmailService {
     public void sendOrderCancelled(Order order, String reason) {
         String subject = "Order Cancelled #" + order.getOrderNumber();
         String body = buildEmailTemplate(
-            "Order Cancelled",
-            "Hi " + order.getCustomer().getName() + ",",
-            "Your order #" + order.getOrderNumber() + " has been cancelled.",
-            reason != null ? "<p>Reason: " + reason + "</p>" : null,
-            "If payment was made online, the refund will be processed within 5-7 business days.",
-            frontendUrl + "/products", "Continue Shopping"
+                "Order Cancelled",
+                "Hi " + order.getCustomer().getName() + ",",
+                "Your order #" + order.getOrderNumber() + " has been cancelled.",
+                reason != null ? "<p>Reason: " + reason + "</p>" : null,
+                "If payment was made online, the refund will be processed within 5-7 business days.",
+                frontendUrl + "/products", "Continue Shopping"
         );
         sendEmail(order.getCustomer().getEmail(), subject, body);
     }
@@ -147,12 +147,12 @@ public class EmailService {
     public void sendSellerApprovalEmail(User seller) {
         String subject = "Seller Account Approved! - " + fromName;
         String body = buildEmailTemplate(
-            "Welcome to " + fromName + "! 🎉",
-            "Hi " + seller.getName() + ",",
-            "Congratulations! Your seller account has been approved.",
-            "<p>Your shop <strong>" + seller.getShopName() + "</strong> is now live!</p>",
-            "You can now start adding products and selling to thousands of customers.",
-            frontendUrl + "/seller/dashboard", "Go to Seller Dashboard"
+                "Welcome to " + fromName + "! 🎉",
+                "Hi " + seller.getName() + ",",
+                "Congratulations! Your seller account has been approved.",
+                "<p>Your shop <strong>" + seller.getShopName() + "</strong> is now live!</p>",
+                "You can now start adding products and selling to thousands of customers.",
+                frontendUrl + "/seller/dashboard", "Go to Seller Dashboard"
         );
         sendEmail(seller.getEmail(), subject, body);
     }
@@ -160,12 +160,12 @@ public class EmailService {
     public void sendSellerRejectionEmail(User seller, String reason) {
         String subject = "Seller Registration Update - " + fromName;
         String body = buildEmailTemplate(
-            "Seller Registration Update",
-            "Hi " + seller.getName() + ",",
-            "Unfortunately, your seller registration could not be approved at this time.",
-            reason != null ? "<p>Reason: " + reason + "</p>" : null,
-            "You may re-apply after addressing the mentioned concerns.",
-            frontendUrl + "/seller/register", "Re-Apply"
+                "Seller Registration Update",
+                "Hi " + seller.getName() + ",",
+                "Unfortunately, your seller registration could not be approved at this time.",
+                reason != null ? "<p>Reason: " + reason + "</p>" : null,
+                "You may re-apply after addressing the mentioned concerns.",
+                frontendUrl + "/seller/register", "Re-Apply"
         );
         sendEmail(seller.getEmail(), subject, body);
     }
@@ -175,12 +175,12 @@ public class EmailService {
     public void sendNewOrderNotificationToSeller(Order order) {
         String subject = "New Order Received #" + order.getOrderNumber();
         String body = buildEmailTemplate(
-            "New Order Alert! 📦",
-            "Hi " + order.getSeller().getName() + ",",
-            "You have received a new order.",
-            buildOrderSummaryHtml(order),
-            "Please process this order promptly.",
-            frontendUrl + "/seller/orders/" + order.getId(), "View Order"
+                "New Order Alert! 📦",
+                "Hi " + order.getSeller().getName() + ",",
+                "You have received a new order.",
+                buildOrderSummaryHtml(order),
+                "Please process this order promptly.",
+                frontendUrl + "/seller/orders/" + order.getId(), "View Order"
         );
         sendEmail(order.getSeller().getEmail(), subject, body);
     }
@@ -190,12 +190,12 @@ public class EmailService {
     public void sendPaymentSuccess(Order order) {
         String subject = "Payment Successful - #" + order.getOrderNumber();
         String body = buildEmailTemplate(
-            "Payment Successful! 💳",
-            "Hi " + order.getCustomer().getName() + ",",
-            "Payment of ₹" + order.getFinalAmount() + " received for order #" + order.getOrderNumber(),
-            null,
-            "Your order is being processed.",
-            frontendUrl + "/orders/" + order.getId(), "View Order"
+                "Payment Successful! 💳",
+                "Hi " + order.getCustomer().getName() + ",",
+                "Payment of ₹" + order.getFinalAmount() + " received for order #" + order.getOrderNumber(),
+                null,
+                "Your order is being processed.",
+                frontendUrl + "/orders/" + order.getId(), "View Order"
         );
         sendEmail(order.getCustomer().getEmail(), subject, body);
     }
@@ -203,8 +203,8 @@ public class EmailService {
     // ─── HTML Template Builder ─────────────────────────────────────────────
 
     private String buildEmailTemplate(String title, String greeting, String message,
-                                       String extraContent, String footer,
-                                       String ctaLink, String ctaText) {
+                                      String extraContent, String footer,
+                                      String ctaLink, String ctaText) {
         StringBuilder sb = new StringBuilder();
         sb.append("<!DOCTYPE html><html><head><meta charset='UTF-8'>");
         sb.append("<style>body{font-family:Arial,sans-serif;background:#f5f5f5;margin:0;padding:0;}");
@@ -271,6 +271,26 @@ public class EmailService {
         } catch (Exception e) {
             log.error("Failed to send verification OTP email to {}: {}", email, e.getMessage());
             throw new RuntimeException("Failed to send verification email. Please try again.");
+        }
+    }
+
+    // ─── Change Password OTP ───────────────────────────────────────────────
+
+    public void sendChangePasswordOtpEmail(String email, String name, String otp) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(email);
+            message.setSubject("Shopverse - Change Password OTP");
+            message.setText("Hi " + name + ",\n\n"
+                    + "Your OTP to change your account password is: " + otp + "\n\n"
+                    + "This OTP is valid for 10 minutes.\n\n"
+                    + "If you did not request this, please secure your account and ignore this email.\n\n"
+                    + "Regards,\nShopverse Team");
+            mailSender.send(message);
+            log.info("Change-password OTP email sent to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send change-password OTP email to {}: {}", email, e.getMessage());
+            throw new RuntimeException("Failed to send OTP email. Please try again.");
         }
     }
 

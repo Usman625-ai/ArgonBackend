@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -31,7 +32,16 @@ import java.util.*;
  * within a product) can ever collide — unlike a fixed pool of stock photos
  * that has to be reused/cycled once you run out of URLs.
  */
+/**
+ * SECURITY: This seeds a hardcoded admin account (admin@shopversee.com / Admin@123)
+ * plus demo users/products/orders. It's gated to non-production profiles only —
+ * it must NEVER run against a real deployment's database.
+ *
+ * Make sure your production deployment sets SPRING_PROFILES_ACTIVE=prod
+ * (or any profile name other than the ones excluded below).
+ */
 @Component
+@Profile("!prod")
 @RequiredArgsConstructor
 @Slf4j
 public class DataLoader implements CommandLineRunner {

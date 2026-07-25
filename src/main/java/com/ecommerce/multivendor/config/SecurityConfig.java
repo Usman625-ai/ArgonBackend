@@ -64,7 +64,10 @@ public class SecurityConfig {
             // JazzCash callbacks (no JWT, secured by pp_SecureHash instead)
             "/api/payments/jazzcash/callback",
             "/api/payments/jazzcash/verify",
-            "/api/payments/jazzcash/test-hash",
+            // NOTE: /api/payments/jazzcash/test-hash is intentionally NOT public.
+            // It's a debug utility that can compute a valid pp_SecureHash for
+            // arbitrary input — it's now locked to ADMIN via @PreAuthorize on the
+            // controller method, and falls under "anyRequest().authenticated()" here.
             // Infra
             "/actuator/health",
             "/v3/api-docs/**",

@@ -3,21 +3,28 @@ package com.ecommerce.multivendor.controller;
 import com.ecommerce.multivendor.dto.request.*;
 import com.ecommerce.multivendor.dto.response.ApiResponse;
 import com.ecommerce.multivendor.dto.response.AuthResponse;
+import com.ecommerce.multivendor.security.JwtTokenProvider;
 import com.ecommerce.multivendor.security.SecurityUtils;
+import com.ecommerce.multivendor.security.TokenBlacklistService;
 import com.ecommerce.multivendor.service.impl.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthController {
 
     private final AuthService authService;
     private final SecurityUtils securityUtils;
+    private final TokenBlacklistService tokenBlacklistService;
+    private final JwtTokenProvider jwtTokenProvider;
 
     /** Register a new CUSTOMER or SELLER. Stages a pending registration until OTP verification. */
     @PostMapping("/register")
@@ -81,7 +88,15 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Password reset successful. Please login."));
     }
 
-    /** Change password (authenticated) */
+    /** Step 1: request an OTP to change password (authenticated). Verifies current password, emails a 6-digit OTP. */
+    @PostMapping("/change-password/request-otp")
+    public ResponseEntity<ApiResponse<Void>> requestChangePasswordOtp(
+            @Valid @RequestBody ChangePasswordOtpRequest request) {
+        authService.requestChangePasswordOtp(securityUtils.getCurrentUser(), request);
+        return ResponseEntity.ok(ApiResponse.success("An OTP has been sent to your registered email."));
+    }
+
+    /** Step 2: change password (authenticated) — requires current password + the OTP emailed in step 1. */
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request) {
@@ -90,9 +105,20 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout() {
-        // JWT is stateless; client simply discards the token.
-        // For production, add a token blacklist (Redis) here.
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @RequestHeader(value = "Authorization", required = false) String bearerToken) {
+        // Blacklist the access token so it can't be used again for the rest of its lifetime.
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            String token = bearerToken.substring(7).trim();
+            try {
+                if (jwtTokenProvider.validateToken(token)) {
+                    tokenBlacklistService.blacklistToken(token, jwtTokenProvider.getExpirationDateFromToken(token));
+                }
+            } catch (Exception e) {
+                log.warn("Failed to blacklist token on logout: {}", e.getMessage());
+            }
+        }
         return ResponseEntity.ok(ApiResponse.success("Logged out successfully"));
     }
 }
+
