@@ -107,12 +107,6 @@
             <version>${cloudinary.version}</version>
         </dependency>
 
-        <!--        <dependency>-->
-        <!--            <groupId>io.sysr</groupId>-->
-        <!--            <artifactId>springcontext-env</artifactId>-->
-        <!--            <version>1.1.4</version>-->
-        <!--        </dependency>-->
-
         <!-- OkHttp -->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
@@ -171,7 +165,15 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+<!--&lt;!&ndash;        to auto load env variables &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>me.paulschwarz</groupId>-->
+<!--            <artifactId>spring-dotenv</artifactId>-->
+<!--            <version>4.0.0</version>-->
+<!--        </dependency>-->
     </dependencies>
+
 
     <build>
         <plugins>
