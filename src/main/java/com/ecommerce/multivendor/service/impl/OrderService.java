@@ -145,7 +145,9 @@ public class OrderService {
                     .shippingPhone(address.getPhoneNumber())
                     .shippingAddress(address.getFullAddress())
                     .couponCode(isFirstOrder ? request.getCouponCode() : null)
-                    .estimatedDeliveryDate(LocalDateTime.now().plusDays(5))
+                    // estimatedDeliveryDate is intentionally left unset here — it is populated
+                    // once the order is CONFIRMED (see setEstimatedDeliveryIfAbsent), so customers
+                    // only see a delivery estimate after the order is actually confirmed.
                     .build();
 
             order = orderRepository.save(order);
@@ -248,6 +250,7 @@ public class OrderService {
         order.setPaymentStatus(PaymentStatus.PAID);
         order.setPaymentId(result.getTransactionId());   // JazzCash pp_TransactionId
         order.setOrderStatus(OrderStatus.CONFIRMED);
+        setEstimatedDeliveryIfAbsent(order);
         orderRepository.save(order);
 
         recordStatusChange(order, previousStatus, OrderStatus.CONFIRMED,
@@ -290,6 +293,7 @@ public class OrderService {
             order.setPaymentStatus(PaymentStatus.PAID);
             order.setPaymentId(result.getTransactionId());
             order.setOrderStatus(OrderStatus.CONFIRMED);
+            setEstimatedDeliveryIfAbsent(order);
             orderRepository.save(order);
             recordStatusChange(order,previousStatus ,OrderStatus.CONFIRMED,
                     "JazzCash payment received via callback.", "System");
@@ -397,6 +401,9 @@ public class OrderService {
         if (request.getTrackingNumber() != null) {
             order.setTrackingNumber(request.getTrackingNumber());
         }
+        if (request.getStatus() == OrderStatus.CONFIRMED) {
+            setEstimatedDeliveryIfAbsent(order);
+        }
         if (request.getStatus() == OrderStatus.DELIVERED) {
             order.setDeliveredAt(LocalDateTime.now());
             // Auto-confirm payment for COD
@@ -447,24 +454,43 @@ public class OrderService {
 
     // ─── Auto-cancel (called by Scheduler) ───────────────────────────────
 
+    /**
+     * Auto-cancelled orders are unpaid JazzCash orders whose payment window has
+     * expired (see OrderRepository#findPendingOrdersOlderThan — COD orders are
+     * excluded and never auto-cancelled). These were never actually paid for, so —
+     * unlike customer-initiated cancellations, which are kept as history — they are
+     * removed from the database entirely (order, its items, and its status history)
+     * rather than just being marked CANCELLED. Stock is restored and the customer is
+     * notified beforehand.
+     */
     public void autoCancelPendingOrders(LocalDateTime cutoff) {
         List<Order> pendingOrders = orderRepository.findPendingOrdersOlderThan(cutoff);
         pendingOrders.forEach(order -> {
             order.getOrderItems().forEach(item ->
                     item.getProduct().increaseStock(item.getQuantity()));
-            OrderStatus previousStatus = order.getOrderStatus();
-            order.setOrderStatus(OrderStatus.CANCELLED);
-            order.setCancelledAt(LocalDateTime.now());
-            order.setCancellationReason("Auto-cancelled: payment not received within 24 hours");
-            orderRepository.save(order);
-            recordStatusChange(order, previousStatus, OrderStatus.CANCELLED,
-                    "Auto-cancelled by system", "System");
-            log.info("Auto-cancelled order: {}", order.getOrderNumber());
+
+            String orderNumber = order.getOrderNumber();
+            emailService.sendOrderCancelled(order, "Auto-cancelled: JazzCash payment not received within the payment window");
+            notificationService.createNotification(order.getCustomer(),
+                    "Your order #" + orderNumber + " was automatically cancelled because JazzCash payment wasn't completed in time.",
+                    "Order Cancelled", NotificationType.ORDER_CANCELLED, "/shop/orders");
+
+            orderRepository.delete(order);
+            log.info("Auto-cancelled order {} removed from database", orderNumber);
         });
         log.info("Auto-cancelled {} pending orders", pendingOrders.size());
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────
+
+    /** Sets the estimated delivery date the first time an order is confirmed (idempotent). */
+    private static final int ESTIMATED_DELIVERY_DAYS = 5;
+
+    private void setEstimatedDeliveryIfAbsent(Order order) {
+        if (order.getEstimatedDeliveryDate() == null) {
+            order.setEstimatedDeliveryDate(LocalDateTime.now().plusDays(ESTIMATED_DELIVERY_DAYS));
+        }
+    }
 
     private Order getOrderForCustomer(Long orderId, Long customerId) {
         Order order = orderRepository.findById(orderId)

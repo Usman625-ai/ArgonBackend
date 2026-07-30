@@ -25,16 +25,16 @@ public class NotificationService {
 
     @Async("asyncExecutor")
     public void createNotification(User user, String message, String title,
-                                    NotificationType type, String actionUrl) {
+                                   NotificationType type, String actionUrl) {
         try {
             Notification notification = Notification.builder()
-                .user(user)
-                .message(message)
-                .title(title)
-                .type(type)
-                .actionUrl(actionUrl)
-                .read(false)
-                .build();
+                    .user(user)
+                    .message(message)
+                    .title(title)
+                    .type(type)
+                    .actionUrl(actionUrl)
+                    .read(false)
+                    .build();
             notificationRepository.save(notification);
         } catch (Exception e) {
             log.error("Failed to create notification for user {}: {}", user.getId(), e.getMessage());
@@ -44,30 +44,30 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public PagedResponse<Map<String, Object>> getNotifications(Long userId, int page, int size) {
         Page<Notification> notifPage = notificationRepository.findByUserIdOrderByCreatedAtDesc(
-            userId, PageRequest.of(page, size)
+                userId, PageRequest.of(page, size)
         );
 
         List<Map<String, Object>> content = notifPage.getContent().stream()
-            .map(n -> Map.<String, Object>of(
-                "id", n.getId(),
-                "title", n.getTitle(),
-                "message", n.getMessage(),
-                "type", n.getType(),
-                "read", n.isRead(),
-                "actionUrl", n.getActionUrl() != null ? n.getActionUrl() : "",
-                "createdAt", n.getCreatedAt()
-            ))
-            .toList();
+                .map(n -> Map.<String, Object>of(
+                        "id", n.getId(),
+                        "title", n.getTitle(),
+                        "message", n.getMessage(),
+                        "type", n.getType(),
+                        "read", n.isRead(),
+                        "actionUrl", n.getActionUrl() != null ? n.getActionUrl() : "",
+                        "createdAt", n.getCreatedAt()
+                ))
+                .toList();
 
         return PagedResponse.<Map<String, Object>>builder()
-            .content(content)
-            .pageNumber(notifPage.getNumber())
-            .pageSize(notifPage.getSize())
-            .totalElements(notifPage.getTotalElements())
-            .totalPages(notifPage.getTotalPages())
-            .last(notifPage.isLast())
-            .first(notifPage.isFirst())
-            .build();
+                .content(content)
+                .pageNumber(notifPage.getNumber())
+                .pageSize(notifPage.getSize())
+                .totalElements(notifPage.getTotalElements())
+                .totalPages(notifPage.getTotalPages())
+                .last(notifPage.isLast())
+                .first(notifPage.isFirst())
+                .build();
     }
 
     public long getUnreadCount(Long userId) {
@@ -85,5 +85,23 @@ public class NotificationService {
         if (updated == 0) {
             throw new com.ecommerce.multivendor.exception.ResourceNotFoundException("Notification", notificationId);
         }
+    }
+
+    @Transactional
+    public void deleteNotification(Long userId, Long notificationId) {
+        int deleted = notificationRepository.deleteByIdAndUserId(notificationId, userId);
+        if (deleted == 0) {
+            throw new com.ecommerce.multivendor.exception.ResourceNotFoundException("Notification", notificationId);
+        }
+    }
+
+    @Transactional
+    public void clearAllNotifications(Long userId) {
+        notificationRepository.deleteAllByUserId(userId);
+    }
+
+    @Transactional
+    public void clearReadNotifications(Long userId) {
+        notificationRepository.deleteReadByUserId(userId);
     }
 }

@@ -19,18 +19,18 @@ public class ScheduledTasks {
     private final OrderService orderService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
 
-    @Value("${app.order.cancellation-window-hours:24}")
-    private int cancellationWindowHours;
+    @Value("${app.order.jazzcash-payment-window-minutes:10}")
+    private int paymentWindowMinutes;
 
     /**
-     * Auto-cancel COD orders that haven't been confirmed within 24 hours.
-     * Runs every hour.
+     * Auto-cancel JazzCash orders that haven't been paid within the payment window
+     * (default 10 minutes). COD orders are never auto-cancelled — see
+     * OrderService#autoCancelPendingOrders. Runs every minute so a stale order is
+     * caught shortly after its window expires, not up to an hour late.
      */
-    @Scheduled(cron = "0 0 * * * *")   // top of every hour
+    @Scheduled(cron = "0 * * * * *")   // top of every minute
     public void autoCancelStaleOrders() {
-        log.info("[Scheduler] Running auto-cancel check at {}",
-            LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-        LocalDateTime cutoff = LocalDateTime.now().minusHours(cancellationWindowHours);
+        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(paymentWindowMinutes);
         try {
             orderService.autoCancelPendingOrders(cutoff);
         } catch (Exception e) {
@@ -59,6 +59,6 @@ public class ScheduledTasks {
     @Scheduled(cron = "0 0 7 * * *")
     public void dailyHealthCheck() {
         log.info("[Scheduler] Daily health check at {}",
-            LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+                LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
     }
 }

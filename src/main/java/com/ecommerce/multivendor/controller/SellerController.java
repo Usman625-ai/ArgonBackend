@@ -252,6 +252,24 @@ public class SellerController {
         return ResponseEntity.ok(ApiResponse.success("Notification marked as read"));
     }
 
+    @DeleteMapping("/notifications/clear-all")
+    public ResponseEntity<ApiResponse<Void>> clearAllNotifications() {
+        notificationService.clearAllNotifications(securityUtils.getCurrentUserId());
+        return ResponseEntity.ok(ApiResponse.success("All notifications cleared"));
+    }
+
+    @DeleteMapping("/notifications/clear-read")
+    public ResponseEntity<ApiResponse<Void>> clearReadNotifications() {
+        notificationService.clearReadNotifications(securityUtils.getCurrentUserId());
+        return ResponseEntity.ok(ApiResponse.success("Read notifications cleared"));
+    }
+
+    @DeleteMapping("/notifications/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteNotification(@PathVariable Long id) {
+        notificationService.deleteNotification(securityUtils.getCurrentUserId(), id);
+        return ResponseEntity.ok(ApiResponse.success("Notification deleted"));
+    }
+
     // ---Revenue-------------------------------------------------------------
 
     @GetMapping("/revenue/monthly")

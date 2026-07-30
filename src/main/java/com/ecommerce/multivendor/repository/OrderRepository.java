@@ -94,9 +94,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Object[]> getDailyRevenueForSeller(@Param("sellerId") Long sellerId,
                                             @Param("since") LocalDateTime since);
 
-    // Auto-cancel: find pending orders older than given time
+    // Auto-cancel: find pending, unpaid JazzCash orders older than given time.
+    // COD orders are never auto-cancelled — they stay PENDING until a seller
+    // confirms or the customer cancels, since no online payment is expected.
     @Query("SELECT o FROM Order o WHERE o.orderStatus = 'PENDING' AND o.createdAt < :cutoff " +
-            "AND o.paymentMethod = 'CASH_ON_DELIVERY'")
+            "AND o.paymentMethod = 'JAZZCASH' AND o.paymentStatus <> 'PAID'")
     List<Order> findPendingOrdersOlderThan(@Param("cutoff") LocalDateTime cutoff);
 
     // Reports
