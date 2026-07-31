@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -33,6 +34,7 @@ public class AdminService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
+    private final com.ecommerce.multivendor.repository.ReviewRepository reviewRepository;
     private final ProductService productService;   // ← add this line
     private final EmailService emailService;
     private final NotificationService notificationService;
@@ -175,6 +177,27 @@ public class AdminService {
         return toUserResponse(user);
     }
 
+    /**
+     * Permanently deletes every CUSTOMER account, along with their orders, addresses,
+     * cart items, wishlist entries, and notifications (all cascade from the User entity),
+     * plus their reviews (deleted explicitly first, since Review has no cascade from User
+     * and would otherwise hit a foreign-key constraint). Sellers and admins are untouched.
+     *
+     * This is irreversible — the caller (admin UI) is expected to confirm with the user
+     * before calling this.
+     */
+    @Transactional
+    public int deleteAllCustomers() {
+        List<User> customers = userRepository.findByRole(Role.CUSTOMER, Pageable.unpaged()).getContent();
+        int count = customers.size();
+        for (User customer : customers) {
+            reviewRepository.deleteByUserId(customer.getId());
+            userRepository.delete(customer);
+        }
+        log.info("Admin bulk-delete: removed {} customer accounts and all their data", count);
+        return count;
+    }
+
     // ─── Helpers & Mappers ─────────────────────────────────────────────────
 
     private User getSellerEntity(Long sellerId) {
@@ -184,6 +207,21 @@ public class AdminService {
             throw new BadRequestException("User is not a seller");
         }
         return seller;
+    }
+
+    // ─── Admin's own profile (personal info) ───────────────────────────────
+
+    public UserResponse getAdminProfile(User admin) {
+        return toUserResponse(admin);
+    }
+
+    public UserResponse updateAdminProfile(User admin, com.ecommerce.multivendor.dto.request.UpdateAdminProfileRequest request) {
+        if (request.getName()          != null) admin.setName(request.getName());
+        if (request.getContactNumber() != null) admin.setContactNumber(request.getContactNumber());
+        if (request.getProfileImage()  != null) admin.setProfileImage(request.getProfileImage());
+        userRepository.save(admin);
+        log.info("Admin profile updated: {}", admin.getId());
+        return toUserResponse(admin);
     }
 
     public UserResponse toUserResponse(User user) {

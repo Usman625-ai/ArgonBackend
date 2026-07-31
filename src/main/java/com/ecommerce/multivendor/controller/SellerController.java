@@ -48,6 +48,12 @@ public class SellerController {
         );
     }
 
+    @PostMapping("/profile/photo")
+    public ResponseEntity<ApiResponse<String>> uploadProfilePhoto(@RequestParam("file") MultipartFile file) {
+        String url = cloudinaryService.uploadImage(file, "profiles").get("url");
+        return ResponseEntity.ok(ApiResponse.success("Photo uploaded", url));
+    }
+
     @PutMapping("/profile")
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
             @RequestBody UpdateSellerProfileRequest request) {

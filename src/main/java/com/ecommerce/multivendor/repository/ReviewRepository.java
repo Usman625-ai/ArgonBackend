@@ -20,4 +20,8 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     Double calculateAverageRating(@Param("productId") Long productId);
 
     long countByProductId(Long productId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByUserId(Long userId);
 }

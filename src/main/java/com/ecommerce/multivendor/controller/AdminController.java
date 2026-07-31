@@ -36,6 +36,26 @@ public class AdminController {
     private final CloudinaryService cloudinaryService;
     private final com.ecommerce.multivendor.repository.GlobalSettingsRepository settingsRepository;
 
+    // ─── Admin's own profile ───────────────────────────────────────────────
+
+    @GetMapping("/profile")
+    public ResponseEntity<ApiResponse<UserResponse>> getProfile() {
+        return ResponseEntity.ok(ApiResponse.success(adminService.getAdminProfile(securityUtils.getCurrentUser())));
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
+            @jakarta.validation.Valid @RequestBody com.ecommerce.multivendor.dto.request.UpdateAdminProfileRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Profile updated",
+                adminService.updateAdminProfile(securityUtils.getCurrentUser(), request)));
+    }
+
+    @PostMapping("/profile/photo")
+    public ResponseEntity<ApiResponse<String>> uploadProfilePhoto(@RequestParam("file") MultipartFile file) {
+        String url = cloudinaryService.uploadImage(file, "profiles").get("url");
+        return ResponseEntity.ok(ApiResponse.success("Photo uploaded", url));
+    }
+
     // ─── System Settings ───────────────────────────────────────────────────
 
     @GetMapping("/settings/maintenance")
@@ -113,6 +133,17 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(adminService.getCustomers(page, size)));
+    }
+
+    /**
+     * Permanently deletes every customer account and all their data (orders, addresses,
+     * cart, wishlist, reviews, notifications). Irreversible — the frontend must confirm
+     * with the admin before calling this.
+     */
+    @DeleteMapping("/customers")
+    public ResponseEntity<ApiResponse<Integer>> deleteAllCustomers() {
+        int count = adminService.deleteAllCustomers();
+        return ResponseEntity.ok(ApiResponse.success(count + " customer account(s) deleted", count));
     }
 
     @PutMapping("/users/{id}/status")
@@ -293,4 +324,3 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("Notification deleted"));
     }
 }
-

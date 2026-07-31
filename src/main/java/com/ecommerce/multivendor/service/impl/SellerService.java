@@ -125,6 +125,8 @@ public class SellerService {
                             + seller.getSellerStatus());
         }
 
+        if (request.getName()              != null) seller.setName(request.getName());
+        if (request.getProfileImage()      != null) seller.setProfileImage(request.getProfileImage());
         if (request.getShopName()          != null) seller.setShopName(request.getShopName());
         if (request.getShopDescription()   != null) seller.setShopDescription(request.getShopDescription());
         if (request.getShopLogo()          != null) seller.setShopLogo(request.getShopLogo());

@@ -6,6 +6,12 @@ import lombok.Data;
 @Data
 public class UpdateSellerProfileRequest {
 
+    @Size(min = 2, max = 100, message = "Name must be 2-100 characters")
+    private String name;
+
+    @Size(max = 500)
+    private String profileImage;
+
     @Size(min = 2, max = 100, message = "Shop name must be 2-100 characters")
     private String shopName;
 
