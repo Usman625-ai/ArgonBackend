@@ -131,8 +131,16 @@ public class AdminController {
     @GetMapping("/customers")
     public ResponseEntity<ApiResponse<PagedResponse<UserResponse>>> getCustomers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ApiResponse.success(adminService.getCustomers(page, size)));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search) {
+        return ResponseEntity.ok(ApiResponse.success(adminService.getCustomers(page, size, search)));
+    }
+
+    /** Permanently deletes a single customer account and all their data. Irreversible. */
+    @DeleteMapping("/customers/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteCustomer(@PathVariable Long id) {
+        adminService.deleteCustomer(id);
+        return ResponseEntity.ok(ApiResponse.success("Customer deleted"));
     }
 
     /**

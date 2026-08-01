@@ -164,9 +164,32 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public PagedResponse<UserResponse> getCustomers(int page, int size) {
+        return getCustomers(page, size, null);
+    }
+
+    public PagedResponse<UserResponse> getCustomers(int page, int size, String search) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<User> customersPage = userRepository.findByRole(Role.CUSTOMER, pageable);
+        Page<User> customersPage = (search != null && !search.trim().isEmpty())
+                ? userRepository.searchByRoleAndKeyword(Role.CUSTOMER, search.trim(), pageable)
+                : userRepository.findByRole(Role.CUSTOMER, pageable);
         return toPagedResponse(customersPage);
+    }
+
+    /**
+     * Permanently deletes a single customer account and all their data (orders,
+     * addresses, cart, wishlist, notifications via cascade; reviews explicitly
+     * first, since Review has no cascade from User). Irreversible.
+     */
+    @Transactional
+    public void deleteCustomer(Long customerId) {
+        User customer = userRepository.findById(customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer", customerId));
+        if (customer.getRole() != Role.CUSTOMER) {
+            throw new BadRequestException("Only customer accounts can be deleted with this action");
+        }
+        reviewRepository.deleteByUserId(customer.getId());
+        userRepository.delete(customer);
+        log.info("Admin deleted customer account: {} ({})", customer.getEmail(), customerId);
     }
 
     public UserResponse toggleUserStatus(Long userId, boolean enable) {

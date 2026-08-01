@@ -73,11 +73,11 @@
 //    // Seed identities — override via application.properties / env vars so real
 //    // emails can be used without touching this file. Defaults match the
 //    // original demo dataset.
-//    @Value("${app.seed.admin.name:Usman Hussain}")
+//    @Value("${app.seed.admin.name}")
 //    private String adminName;
-//    @Value("${app.seed.admin.email:admin@shopversee.com}")
+//    @Value("${app.seed.admin.email}")
 //    private String adminEmail;
-//    @Value("${app.seed.admin.password:Admin@123}")
+//    @Value("${app.seed.admin.password}")
 //    private String adminPassword;
 //
 //    @Value("${app.seed.seller1.email:seller1@shop.com}") private String seller1Email;
@@ -89,10 +89,34 @@
 //    @Value("${app.seed.seller7.email:seller7@shop.com}") private String seller7Email;
 //    @Value("${app.seed.seller8.email:seller8@shop.com}") private String seller8Email;
 //
+//    /**
+//     * When false (the default), DataLoader only creates the single admin account
+//     * from the app.seed.admin.* properties and stops — no demo sellers, customers,
+//     * categories, products, addresses, coupons, orders, reviews, or wishlists.
+//     * Set to true only if you want the old full demo dataset seeded again (e.g. for
+//     * a throwaway test database).
+//     */
+//    @Value("${app.seed.demo-data:false}")
+//    private boolean seedDemoData;
+//
 //    @Override
 //    public void run(String... args) {
 //        if (userRepository.count() > 0) {
 //            log.info("📦 DataLoader: data already exists — skipping.");
+//            return;
+//        }
+//
+//        if (!seedDemoData) {
+//            User admin = User.builder()
+//                    .name(adminName)
+//                    .email(adminEmail)
+//                    .password(passwordEncoder.encode(adminPassword))
+//                    .role(Role.ADMIN)
+//                    .active(true).verified(true)
+//                    .contactNumber("03353580298")
+//                    .build();
+//            userRepository.save(admin);
+//            log.info("✅ DataLoader: created admin account ({}) — demo data seeding skipped (app.seed.demo-data=false).", adminEmail);
 //            return;
 //        }
 //
