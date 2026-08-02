@@ -78,7 +78,7 @@ public class AuthService {
                 .contactNumber(request.getContactNumber())
                 .shopName(request.getRole() == Role.SELLER ? request.getShopName().trim() : null)
                 .verificationOtp(passwordEncoder.encode(otp))
-                .otpExpiry(LocalDateTime.now().plusMinutes(10))
+                .otpExpiry(LocalDateTime.now().plusMinutes(1))
                 .lastOtpSentAt(LocalDateTime.now())
                 .build();
 
@@ -212,7 +212,7 @@ public class AuthService {
 
         String otp = OtpGenerator.generateOtp(6);
         pending.setVerificationOtp(passwordEncoder.encode(otp));
-        pending.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        pending.setOtpExpiry(LocalDateTime.now().plusMinutes(1));
         pending.setLastOtpSentAt(LocalDateTime.now());
         pendingRegistrationRepository.save(pending);
 
@@ -291,7 +291,7 @@ public class AuthService {
         String otp = OtpGenerator.generateOtp(6);
         ChangePasswordOtp entity = existing != null ? existing : ChangePasswordOtp.builder().user(currentUser).build();
         entity.setOtpHash(passwordEncoder.encode(otp));
-        entity.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        entity.setOtpExpiry(LocalDateTime.now().plusMinutes(1));
         entity.setLastSentAt(LocalDateTime.now());
         changePasswordOtpRepository.save(entity);
 

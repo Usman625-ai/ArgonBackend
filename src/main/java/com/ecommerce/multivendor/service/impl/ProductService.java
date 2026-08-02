@@ -20,6 +20,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -392,7 +394,12 @@ public class ProductService {
 
     public ProductResponse toProductResponse(Product product) {
         List<ProductImage> images = productImageRepository.findByProductId(product.getId());
-        ProductImage primaryImageUrl = images.stream().filter(ProductImage::isPrimary).findFirst().orElse(null);
+        return buildProductResponse(product, images);
+    }
+
+    private ProductResponse buildProductResponse(Product product, List<ProductImage> images) {
+        ProductImage primary = images.stream().filter(ProductImage::isPrimary).findFirst()
+                .orElse(images.isEmpty() ? null : images.get(0));
 
         return ProductResponse.builder()
                 .id(product.getId())
@@ -427,14 +434,33 @@ public class ProductService {
                                 .displayOrder(img.getDisplayOrder())
                                 .build()
                 ).toList())
-                .primaryImageUrl(primaryImageUrl.getImageUrl())
+                .primaryImageUrl(primary != null ? primary.getImageUrl() : null)
                 .createdAt(product.getCreatedAt())
                 .build();
     }
 
+    /**
+     * Maps a page of products in bulk: ONE query to fetch every image for every
+     * product on the page (instead of one query per product — a classic N+1 that's
+     * especially costly when the database isn't on localhost, since every extra
+     * round trip pays full network latency). Category/seller N+1 is avoided
+     * separately via @EntityGraph on the repository query methods that feed this.
+     */
     private PagedResponse<ProductResponse> toPagedResponse(Page<Product> page) {
+        List<Product> products = page.getContent();
+        List<Long> productIds = products.stream().map(Product::getId).toList();
+
+        Map<Long, List<ProductImage>> imagesByProduct = productIds.isEmpty()
+                ? Map.of()
+                : productImageRepository.findByProductIdIn(productIds).stream()
+                .collect(Collectors.groupingBy(img -> img.getProduct().getId()));
+
+        List<ProductResponse> content = products.stream()
+                .map(p -> buildProductResponse(p, imagesByProduct.getOrDefault(p.getId(), List.of())))
+                .toList();
+
         return PagedResponse.<ProductResponse>builder()
-                .content(page.getContent().stream().map(this::toProductResponse).toList())
+                .content(content)
                 .pageNumber(page.getNumber())
                 .pageSize(page.getSize())
                 .totalElements(page.getTotalElements())

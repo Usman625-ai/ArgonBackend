@@ -4,7 +4,6 @@ import com.ecommerce.multivendor.entity.Order;
 import com.ecommerce.multivendor.entity.User;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,21 +43,6 @@ public class EmailService {
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
         }
-    }
-
-    // ─── OTP Verification ─────────────────────────────────────────────────
-
-    public void sendVerificationOtp(User user, String otp) {
-        String subject = "Verify Your Email - " + fromName;
-        String body = buildEmailTemplate(
-                "Email Verification",
-                "Hi " + user.getName() + ",",
-                "Your email verification OTP is:",
-                "<h1 style='color:#6366f1;letter-spacing:8px;'>" + otp + "</h1>",
-                "This OTP will expire in 10 minutes. Do not share it with anyone.",
-                null, null
-        );
-        sendEmail(user.getEmail(), subject, body);
     }
 
     // ─── Password Reset ────────────────────────────────────────────────────
@@ -256,42 +240,36 @@ public class EmailService {
         return sb.toString();
     }
 
+    // ─── Email Verification OTP ────────────────────────────────────────────
+
     public void sendVerificationOtpEmail(String email, String name, String otp) {
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(email);
-            message.setSubject("Shopverse - Email Verification OTP");
-            message.setText("Hi " + name + ",\n\n"
-                    + "Your email verification OTP is: " + otp + "\n\n"
-                    + "This OTP is valid for 10 minutes.\n\n"
-                    + "If you did not request this, please ignore this email.\n\n"
-                    + "Regards,\nShopverse Team");
-            mailSender.send(message);
-            log.info("Verification OTP email sent to: {}", email);
-        } catch (Exception e) {
-            log.error("Failed to send verification OTP email to {}: {}", email, e.getMessage());
-            throw new RuntimeException("Failed to send verification email. Please try again.");
-        }
+        String subject = "Verify Your Email - " + fromName;
+        String body = buildEmailTemplate(
+                "Email Verification",
+                "Hi " + name + ",",
+                "Your email verification OTP is:",
+                "<h1 style='color:#6366f1;letter-spacing:8px;text-align:center;'>" + otp + "</h1>",
+                "This OTP will expire in 1 minute. Do not share it with anyone. If you did not request this, please ignore this email.",
+                null, null
+        );
+        sendEmail(email, subject, body);
+        log.info("Verification OTP email sent to: {}", email);
     }
 
     // ─── Change Password OTP ───────────────────────────────────────────────
 
     public void sendChangePasswordOtpEmail(String email, String name, String otp) {
-        try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(email);
-            message.setSubject("Shopverse - Change Password OTP");
-            message.setText("Hi " + name + ",\n\n"
-                    + "Your OTP to change your account password is: " + otp + "\n\n"
-                    + "This OTP is valid for 10 minutes.\n\n"
-                    + "If you did not request this, please secure your account and ignore this email.\n\n"
-                    + "Regards,\nShopverse Team");
-            mailSender.send(message);
-            log.info("Change-password OTP email sent to: {}", email);
-        } catch (Exception e) {
-            log.error("Failed to send change-password OTP email to {}: {}", email, e.getMessage());
-            throw new RuntimeException("Failed to send OTP email. Please try again.");
-        }
+        String subject = "Change Password Request - " + fromName;
+        String body = buildEmailTemplate(
+                "Change Password Request",
+                "Hi " + name + ",",
+                "Your OTP to change your account password is:",
+                "<h1 style='color:#6366f1;letter-spacing:8px;text-align:center;'>" + otp + "</h1>",
+                "This OTP will expire in 1 minute. If you did not request this, please secure your account and ignore this email.",
+                null, null
+        );
+        sendEmail(email, subject, body);
+        log.info("Change-password OTP email sent to: {}", email);
     }
 
 }

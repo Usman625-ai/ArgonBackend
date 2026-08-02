@@ -13,6 +13,7 @@ import com.ecommerce.multivendor.repository.*;
 import com.ecommerce.multivendor.util.OrderNumberGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,10 @@ public class OrderService {
     private final PaymentService paymentService;
     private final EmailService emailService;
     private final NotificationService notificationService;
+
+    /** Feature flag — flip to true (app.payments.jazzcash-enabled) once JazzCash is back. */
+    @Value("${app.payments.jazzcash-enabled:false}")
+    private boolean jazzCashEnabled;
 
     // ─── Checkout ──────────────────────────────────────────────────────────
 
@@ -69,6 +74,10 @@ public class OrderService {
      * - Returns list of created orders (one per seller)
      */
     public List<OrderResponse> checkout(CheckoutRequest request, User customer) {
+        if (request.getPaymentMethod() == PaymentMethod.JAZZCASH && !jazzCashEnabled) {
+            throw new BadRequestException("Sorry, JazzCash payments aren't available right now. Please choose Cash on Delivery — JazzCash will be back soon!");
+        }
+
         List<CartItem> cartItems = cartService.getCartItems(customer.getId());
         if (cartItems.isEmpty()) {
             throw new BadRequestException("Your cart is empty");

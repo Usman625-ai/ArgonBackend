@@ -3,6 +3,7 @@ package com.ecommerce.multivendor.repository;
 import com.ecommerce.multivendor.entity.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -19,6 +20,7 @@ import java.util.Optional;
 public interface ProductRepository extends JpaRepository<Product, Long>,
         JpaSpecificationExecutor<Product> {
 
+    @EntityGraph(attributePaths = {"category", "seller"})
     @Query("SELECT p FROM Product p WHERE " +
             "(:active IS NULL OR p.active = :active) AND " +
             "(:q IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%',:q,'%')) " +
@@ -30,30 +32,41 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
     @Query("UPDATE Product p SET p.active = :active WHERE p.id = :id")
     int updateProductStatus(@Param("id") Long id, @Param("active") Boolean active);
 
+    @EntityGraph(attributePaths = {"category", "seller", "images"})
     @Query("SELECT p FROM Product p WHERE p.active = true AND p.featured = true ORDER BY p.featuredAt DESC")
     List<Product> findFeaturedProducts();
 
+    @EntityGraph(attributePaths = {"category", "seller", "images"})
     @Query("SELECT p FROM Product p WHERE p.active = true AND p.featured = true ORDER BY p.featuredAt DESC")
     Page<Product> findFeaturedProducts(Pageable pageable);
 
     @Query("SELECT p FROM Product p WHERE p.active = true AND p.featured = true AND p.category.id = :categoryId")
     List<Product> findFeaturedProductsByCategory(@Param("categoryId") Long categoryId);
 
+    @EntityGraph(attributePaths = {"category", "seller"})
     Optional<Product> findBySlug(String slug);
     boolean existsBySlug(String slug);
 
+    @EntityGraph(attributePaths = {"category", "seller"})
     Page<Product> findBySellerId(Long sellerId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category", "seller"})
     Page<Product> findBySellerIdAndActiveTrue(Long sellerId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"category", "seller"})
     Page<Product> findByCategoryIdAndActiveTrue(Long categoryId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"category", "seller"})
     Page<Product> findByActiveTrue(Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category", "seller"})
     @Query("SELECT p FROM Product p WHERE p.active = true AND p.seller.active = true AND " +
             "(LOWER(p.name) LIKE LOWER(CONCAT('%',:q,'%')) OR " +
             " LOWER(p.description) LIKE LOWER(CONCAT('%',:q,'%')) OR " +
             " LOWER(p.brand) LIKE LOWER(CONCAT('%',:q,'%')))")
     Page<Product> searchProducts(@Param("q") String q, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category", "seller"})
     @Query("SELECT p FROM Product p WHERE p.active = true AND p.seller.active = true AND " +
             "(:categoryId IS NULL OR p.category.id = :categoryId " +
             "  OR p.category.parent.id = :categoryId " +
