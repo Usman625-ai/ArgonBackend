@@ -28,8 +28,11 @@ public class EmailService {
     private String frontendUrl;
 
     // ─── Core send method ─────────────────────────────────────────────────
-
-    @Async("asyncExecutor")
+    // NOTE: @Async intentionally lives on the public-facing methods below, not
+    // here. Every call to this method is a same-class self-invocation (e.g.
+    // sendOrderConfirmation calling this.sendEmail(...)), which bypasses
+    // Spring's proxy-based @Async entirely — annotating it here would silently
+    // do nothing and every email would block the calling request thread.
     public void sendEmail(String to, String subject, String htmlBody) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -47,6 +50,7 @@ public class EmailService {
 
     // ─── Password Reset ────────────────────────────────────────────────────
 
+    @Async("asyncExecutor")
     public void sendPasswordResetEmail(User user, String token) {
         String resetLink = frontendUrl + "/reset-password?token=" + token;
         String subject = "Reset Your Password - " + fromName;
@@ -63,6 +67,7 @@ public class EmailService {
 
     // ─── Order Confirmation ────────────────────────────────────────────────
 
+    @Async("asyncExecutor")
     public void sendOrderConfirmation(Order order) {
         String subject = "Order Confirmed #" + order.getOrderNumber();
         String content = buildOrderSummaryHtml(order);
@@ -79,6 +84,7 @@ public class EmailService {
 
     // ─── Order Shipped ─────────────────────────────────────────────────────
 
+    @Async("asyncExecutor")
     public void sendOrderShipped(Order order) {
         String subject = "Your Order is on the Way! 🚚 #" + order.getOrderNumber();
         String body = buildEmailTemplate(
@@ -98,6 +104,7 @@ public class EmailService {
 
     // ─── Order Delivered ───────────────────────────────────────────────────
 
+    @Async("asyncExecutor")
     public void sendOrderDelivered(Order order) {
         String subject = "Order Delivered! #" + order.getOrderNumber();
         String body = buildEmailTemplate(
@@ -113,6 +120,7 @@ public class EmailService {
 
     // ─── Order Cancelled ───────────────────────────────────────────────────
 
+    @Async("asyncExecutor")
     public void sendOrderCancelled(Order order, String reason) {
         String subject = "Order Cancelled #" + order.getOrderNumber();
         String body = buildEmailTemplate(
@@ -128,6 +136,7 @@ public class EmailService {
 
     // ─── Seller Approval ───────────────────────────────────────────────────
 
+    @Async("asyncExecutor")
     public void sendSellerApprovalEmail(User seller) {
         String subject = "Seller Account Approved! - " + fromName;
         String body = buildEmailTemplate(
@@ -141,6 +150,7 @@ public class EmailService {
         sendEmail(seller.getEmail(), subject, body);
     }
 
+    @Async("asyncExecutor")
     public void sendSellerRejectionEmail(User seller, String reason) {
         String subject = "Seller Registration Update - " + fromName;
         String body = buildEmailTemplate(
@@ -156,6 +166,7 @@ public class EmailService {
 
     // ─── New Order for Seller ─────────────────────────────────────────────
 
+    @Async("asyncExecutor")
     public void sendNewOrderNotificationToSeller(Order order) {
         String subject = "New Order Received #" + order.getOrderNumber();
         String body = buildEmailTemplate(
@@ -171,6 +182,7 @@ public class EmailService {
 
     // ─── Payment Success ───────────────────────────────────────────────────
 
+    @Async("asyncExecutor")
     public void sendPaymentSuccess(Order order) {
         String subject = "Payment Successful - #" + order.getOrderNumber();
         String body = buildEmailTemplate(
@@ -242,6 +254,7 @@ public class EmailService {
 
     // ─── Email Verification OTP ────────────────────────────────────────────
 
+    @Async("asyncExecutor")
     public void sendVerificationOtpEmail(String email, String name, String otp) {
         String subject = "Verify Your Email - " + fromName;
         String body = buildEmailTemplate(
@@ -258,6 +271,7 @@ public class EmailService {
 
     // ─── Change Password OTP ───────────────────────────────────────────────
 
+    @Async("asyncExecutor")
     public void sendChangePasswordOtpEmail(String email, String name, String otp) {
         String subject = "Change Password Request - " + fromName;
         String body = buildEmailTemplate(

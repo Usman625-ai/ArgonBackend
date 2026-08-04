@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -547,7 +548,10 @@ public class OrderService {
         List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
         List<OrderStatusHistory> history = statusHistoryRepository
                 .findByOrderIdOrderByCreatedAtAsc(order.getId());
+        return buildOrderResponse(order, items, history);
+    }
 
+    private OrderResponse buildOrderResponse(Order order, List<OrderItem> items, List<OrderStatusHistory> history) {
         return OrderResponse.builder()
                 .id(order.getId())
                 .orderNumber(order.getOrderNumber())
@@ -590,9 +594,34 @@ public class OrderService {
                 .build();
     }
 
+    /**
+     * Maps a page of orders in bulk: ONE query for every order's items and ONE
+     * query for every order's status history (instead of two queries per order —
+     * the same N+1 pattern fixed for product listings, and just as costly against
+     * a non-local database).
+     */
     private PagedResponse<OrderResponse> toPagedResponse(Page<Order> page) {
+        List<Order> orders = page.getContent();
+        List<Long> orderIds = orders.stream().map(Order::getId).toList();
+
+        Map<Long, List<OrderItem>> itemsByOrder = orderIds.isEmpty()
+                ? Map.of()
+                : orderItemRepository.findByOrderIdIn(orderIds).stream()
+                .collect(Collectors.groupingBy(i -> i.getOrder().getId()));
+
+        Map<Long, List<OrderStatusHistory>> historyByOrder = orderIds.isEmpty()
+                ? Map.of()
+                : statusHistoryRepository.findByOrderIdInOrderByCreatedAtAsc(orderIds).stream()
+                .collect(Collectors.groupingBy(h -> h.getOrder().getId()));
+
+        List<OrderResponse> content = orders.stream()
+                .map(o -> buildOrderResponse(o,
+                        itemsByOrder.getOrDefault(o.getId(), List.of()),
+                        historyByOrder.getOrDefault(o.getId(), List.of())))
+                .toList();
+
         return PagedResponse.<OrderResponse>builder()
-                .content(page.getContent().stream().map(this::toOrderResponse).toList())
+                .content(content)
                 .pageNumber(page.getNumber())
                 .pageSize(page.getSize())
                 .totalElements(page.getTotalElements())

@@ -5,6 +5,7 @@ import com.ecommerce.multivendor.enums.OrderStatus;
 import com.ecommerce.multivendor.enums.PaymentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,14 +21,32 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Optional<Order> findByOrderNumber(String orderNumber);
 
+    /**
+     * Overrides the default findById to also eagerly fetch customer+seller.
+     * This matters beyond just avoiding N+1: several email-sending methods
+     * (sendOrderConfirmation, sendOrderShipped, etc.) are @Async and read
+     * order.getCustomer()/getSeller() — if those were still lazy proxies, the
+     * async thread could hit them after the original request's Hibernate
+     * session already closed and throw LazyInitializationException. Eager
+     * loading here means that data is always already resolved, safe from any
+     * thread, at any time.
+     */
+    @EntityGraph(attributePaths = {"customer", "seller"})
+    Optional<Order> findById(Long id);
+
     // Customer queries
+    @EntityGraph(attributePaths = {"customer", "seller"})
     Page<Order> findByCustomerIdOrderByCreatedAtDesc(Long customerId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"customer", "seller"})
     Page<Order> findByCustomerIdAndOrderStatusOrderByCreatedAtDesc(Long customerId, OrderStatus orderStatus, Pageable pageable);
 
     // Seller queries
+    @EntityGraph(attributePaths = {"customer", "seller"})
     Page<Order> findBySellerIdOrderByCreatedAtDesc(Long sellerId, Pageable pageable);
 
     // Admin queries
+    @EntityGraph(attributePaths = {"customer", "seller"})
     Page<Order> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     // Coupon per-user usage count (excludes cancelled orders)

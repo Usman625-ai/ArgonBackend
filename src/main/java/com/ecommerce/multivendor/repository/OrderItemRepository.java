@@ -13,10 +13,14 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 
     List<OrderItem> findByOrderId(Long orderId);
 
+    /** Batch lookup for a page of orders — one query instead of one-per-order. */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"product"})
+    List<OrderItem> findByOrderIdIn(List<Long> orderIds);
+
     @Query("SELECT oi FROM OrderItem oi WHERE oi.order.customer.id = :customerId " +
-           "AND oi.product.id = :productId AND oi.order.orderStatus = 'DELIVERED'")
+            "AND oi.product.id = :productId AND oi.order.orderStatus = 'DELIVERED'")
     List<OrderItem> findDeliveredByCustomerAndProduct(@Param("customerId") Long customerId,
-                                                       @Param("productId") Long productId);
+                                                      @Param("productId") Long productId);
 
     boolean existsByProductId(Long productId);
 }

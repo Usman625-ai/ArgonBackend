@@ -16,4 +16,9 @@ public interface OrderStatusHistoryRepository extends JpaRepository<OrderStatusH
 
     @Query("SELECT osh FROM OrderStatusHistory osh WHERE osh.order.id = :orderId ORDER BY osh.createdAt DESC")
     List<OrderStatusHistory> findByOrderIdOrderByCreatedAtDesc(@Param("orderId") Long orderId);
+
+    /** Batch lookup for a page of orders — one query instead of one-per-order. */
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"changedBy"})
+    @Query("SELECT osh FROM OrderStatusHistory osh WHERE osh.order.id IN :orderIds ORDER BY osh.createdAt ASC")
+    List<OrderStatusHistory> findByOrderIdInOrderByCreatedAtAsc(@Param("orderIds") List<Long> orderIds);
 }

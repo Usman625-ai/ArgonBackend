@@ -11,7 +11,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "order_status_history")
+@Table(name = "order_status_history", indexes = {
+        @Index(name = "idx_status_history_order", columnList = "order_id")
+})
 @Data
 @Builder
 @NoArgsConstructor
