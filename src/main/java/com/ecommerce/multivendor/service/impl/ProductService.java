@@ -1,5 +1,6 @@
 package com.ecommerce.multivendor.service.impl;
 
+import com.ecommerce.multivendor.config.RetryableRead;
 import com.ecommerce.multivendor.dto.request.ProductRequest;
 import com.ecommerce.multivendor.dto.request.StockUpdateRequest;
 import com.ecommerce.multivendor.dto.response.*;
@@ -39,6 +40,7 @@ public class ProductService {
 
     // ─── Public: Browse / Search ───────────────────────────────────────────
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<ProductResponse> getPublicProducts(int page, int size, String sortBy, String sortDir) {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
@@ -47,6 +49,7 @@ public class ProductService {
         return toPagedResponse(productPage);
     }
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<ProductResponse> getAdminProducts(String q, Boolean active, int page, int size) {
         Pageable pageable = PageRequest.of(page, Math.min(size, 100), Sort.by("createdAt").descending());
@@ -55,6 +58,7 @@ public class ProductService {
         return toPagedResponse(productPage);
     }
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<ProductResponse> searchProducts(String query, Long categoryId,
                                                          BigDecimal minPrice, BigDecimal maxPrice,
@@ -68,6 +72,7 @@ public class ProductService {
         return toPagedResponse(productPage);
     }
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public ProductResponse getProductByIdPublic(Long id) {
         Product product = productRepository.findById(id)
@@ -78,6 +83,7 @@ public class ProductService {
         return toProductResponse(product);
     }
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public ProductResponse getProductBySlug(String slug) {
         Product product = productRepository.findBySlug(slug)
@@ -94,6 +100,7 @@ public class ProductService {
         return productRepository.findAllBrands();
     }
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<ProductResponse> getProductsByCategory(Long categoryId,
                                                                 int page, int size,
@@ -113,6 +120,7 @@ public class ProductService {
 
     // ─── Seller: Manage Products ───────────────────────────────────────────
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<ProductResponse> getSellerProducts(Long sellerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
@@ -120,6 +128,7 @@ public class ProductService {
         return toPagedResponse(productPage);
     }
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<ProductResponse> getAllSellerProducts(Long sellerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
@@ -378,6 +387,7 @@ public class ProductService {
 
     // ─── Admin ─────────────────────────────────────────────────────────────
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<ProductResponse> getAllProductsAdmin(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());

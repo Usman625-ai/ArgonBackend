@@ -58,6 +58,18 @@
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
         </dependency>
+        <!-- Retry support: transparently retries read-only queries that fail due to a
+             transient DB connection blip (e.g. TiDB Serverless dropping a connection
+             mid-flight), instead of surfacing a 500 to the user for something that
+             would have succeeded a moment later. Never applied to write operations. -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
@@ -166,12 +178,12 @@
             <scope>test</scope>
         </dependency>
 
-<!--&lt;!&ndash;        to auto load env variables &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>me.paulschwarz</groupId>-->
-<!--            <artifactId>spring-dotenv</artifactId>-->
-<!--            <version>4.0.0</version>-->
-<!--        </dependency>-->
+        <!--&lt;!&ndash;        to auto load env variables &ndash;&gt;-->
+        <!--        <dependency>-->
+        <!--            <groupId>me.paulschwarz</groupId>-->
+        <!--            <artifactId>spring-dotenv</artifactId>-->
+        <!--            <version>4.0.0</version>-->
+        <!--        </dependency>-->
     </dependencies>
 
 

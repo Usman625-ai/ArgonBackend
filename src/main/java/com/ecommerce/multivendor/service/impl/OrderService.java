@@ -11,6 +11,7 @@ import com.ecommerce.multivendor.exception.ResourceNotFoundException;
 import com.ecommerce.multivendor.exception.UnauthorizedException;
 import com.ecommerce.multivendor.repository.*;
 import com.ecommerce.multivendor.util.OrderNumberGenerator;
+import com.ecommerce.multivendor.config.RetryableRead;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -324,11 +325,13 @@ public class OrderService {
 
     // ─── Customer: Orders ──────────────────────────────────────────────────
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<OrderResponse> getCustomerOrders(Long customerId, int page, int size) {
         return getCustomerOrders(customerId, page, size, null);
     }
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<OrderResponse> getCustomerOrders(Long customerId, int page, int size, OrderStatus status) {
         Pageable pageable = PageRequest.of(page, size);
@@ -338,6 +341,7 @@ public class OrderService {
         return toPagedResponse(orderPage);
     }
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public OrderResponse getCustomerOrder(Long orderId, Long customerId) {
         return toOrderResponse(getOrderForCustomer(orderId, customerId));
@@ -387,6 +391,7 @@ public class OrderService {
 
     // ─── Seller: Orders ────────────────────────────────────────────────────
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<OrderResponse> getSellerOrders(Long sellerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
@@ -449,6 +454,7 @@ public class OrderService {
 
     // ─── Admin: Orders ─────────────────────────────────────────────────────
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public PagedResponse<OrderResponse> getAllOrders(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
@@ -456,6 +462,7 @@ public class OrderService {
         return toPagedResponse(orderPage);
     }
 
+    @RetryableRead
     @Transactional(readOnly = true)
     public OrderResponse getOrderById(Long orderId) {
         return toOrderResponse(orderRepository.findById(orderId)

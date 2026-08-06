@@ -19,7 +19,7 @@ public class ScheduledTasks {
     private final OrderService orderService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
 
-    @Value("${app.order.jazzcash-payment-window-minutes:10}")
+    @Value("${app.order.jazzcash-payment-window-minutes}")
     private int paymentWindowMinutes;
 
     /**
