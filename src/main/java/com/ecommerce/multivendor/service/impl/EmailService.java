@@ -59,7 +59,7 @@ public class EmailService {
                 "Hi " + user.getName() + ",",
                 "Click the button below to reset your password:",
                 null,
-                "This link will expire in 24 hours. If you didn't request this, ignore this email.",
+                "This link will expire in 1 minute. If you didn't request this, ignore this email.",
                 resetLink, "Reset Password"
         );
         sendEmail(user.getEmail(), subject, body);

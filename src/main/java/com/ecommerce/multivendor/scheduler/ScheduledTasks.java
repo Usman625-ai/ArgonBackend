@@ -25,10 +25,15 @@ public class ScheduledTasks {
     /**
      * Auto-cancel JazzCash orders that haven't been paid within the payment window
      * (default 10 minutes). COD orders are never auto-cancelled — see
-     * OrderService#autoCancelPendingOrders. Runs every minute so a stale order is
-     * caught shortly after its window expires, not up to an hour late.
+     * OrderService#autoCancelPendingOrders.
+     *
+     * Runs every 30 minutes rather than every minute — this means a stale order can
+     * sit up to ~30 minutes past its 10-minute window before cleanup (stock stays
+     * reserved a little longer for an abandoned/unpaid cart), but that's a fine
+     * trade for far fewer scheduled DB round trips in production. Tighten the cron
+     * below if you ever need faster cleanup.
      */
-    @Scheduled(cron = "0 * * * * *")   // top of every minute
+    @Scheduled(cron = "${app.order.auto-cancel-cron:0 0,30 * * * *}")
     public void autoCancelStaleOrders() {
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(paymentWindowMinutes);
         try {

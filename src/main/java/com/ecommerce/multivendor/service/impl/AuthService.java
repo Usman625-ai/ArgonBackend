@@ -237,7 +237,7 @@ public class AuthService {
                     PasswordResetToken resetToken = PasswordResetToken.builder()
                             .token(token)
                             .user(user)
-                            .expiryDate(LocalDateTime.now().plusHours(24))
+                            .expiryDate(LocalDateTime.now().plusMinutes(1))
                             .used(false)
                             .build();
 
@@ -343,6 +343,5 @@ public class AuthService {
                 .build();
     }
 }
-
 
 
