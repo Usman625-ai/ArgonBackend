@@ -25,6 +25,7 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final CloudinaryService cloudinaryService;
 
     // ─── Public: all active categories with children ───────────────────────
 
@@ -100,6 +101,10 @@ public class CategoryService {
 
         category.setName(request.getName());
         category.setDescription(request.getDescription());
+        String oldImageUrl = category.getImageUrl();
+        if (request.getImageUrl() != null && !request.getImageUrl().equals(oldImageUrl)) {
+            cloudinaryService.deleteImageByUrl(oldImageUrl);
+        }
         category.setImageUrl(request.getImageUrl());
         category.setActive(request.isActive());
         category.setDisplayOrder(request.getDisplayOrder());
@@ -132,6 +137,7 @@ public class CategoryService {
             throw new BadRequestException("Cannot delete category with associated products.");
         }
 
+        cloudinaryService.deleteImageByUrl(category.getImageUrl());
         categoryRepository.delete(category);
         log.info("Category deleted: {}", id);
     }

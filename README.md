@@ -1,4 +1,4 @@
-# ShopVerse – Multi-Vendor E-Commerce Backend
+# Argon – Multi-Vendor E-Commerce Backend
 
 Spring Boot 3.x production-ready backend for a multi‑vendor e‑commerce platform with **JWT authentication**, **JazzCash** payments, **Cloudinary** image storage, and **Excel reporting**.
 

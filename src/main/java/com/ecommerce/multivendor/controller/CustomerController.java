@@ -315,7 +315,12 @@ public class CustomerController {
         User customer = securityUtils.getCurrentUser();
         if (request.getName()          != null) customer.setName(request.getName());
         if (request.getContactNumber() != null) customer.setContactNumber(request.getContactNumber());
-        if (request.getProfileImage()  != null) customer.setProfileImage(request.getProfileImage());
+        if (request.getProfileImage()  != null) {
+            if (!request.getProfileImage().equals(customer.getProfileImage())) {
+                cloudinaryService.deleteImageByUrl(customer.getProfileImage());
+            }
+            customer.setProfileImage(request.getProfileImage());
+        }
         userRepository.save(customer);                      // ← persisted properly
         return ResponseEntity.ok(ApiResponse.success("Profile updated",
                 UserResponse.builder()

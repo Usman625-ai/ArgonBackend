@@ -24,11 +24,11 @@ public class SiteSetting {
 
     @Column(name = "site_name", nullable = false)
     @Builder.Default
-    private String siteName = "ShopVersee";
+    private String siteName = "Argon";
 
     @Column(name = "contact_email", nullable = false)
     @Builder.Default
-    private String contactEmail = "support@shopversee.com";
+    private String contactEmail = "support@argon.com";
 
     @Column(name = "currency_symbol", nullable = false)
     @Builder.Default

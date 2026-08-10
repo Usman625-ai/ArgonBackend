@@ -35,9 +35,10 @@ public class AdminService {
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
     private final com.ecommerce.multivendor.repository.ReviewRepository reviewRepository;
-    private final ProductService productService;   // ← add this line
+    private final ProductService productService;
     private final EmailService emailService;
     private final NotificationService notificationService;
+    private final CloudinaryService cloudinaryService;
 
     // ─── Dashboard Statistics ──────────────────────────────────────────────
 
@@ -241,7 +242,12 @@ public class AdminService {
     public UserResponse updateAdminProfile(User admin, com.ecommerce.multivendor.dto.request.UpdateAdminProfileRequest request) {
         if (request.getName()          != null) admin.setName(request.getName());
         if (request.getContactNumber() != null) admin.setContactNumber(request.getContactNumber());
-        if (request.getProfileImage()  != null) admin.setProfileImage(request.getProfileImage());
+        if (request.getProfileImage()  != null) {
+            if (!request.getProfileImage().equals(admin.getProfileImage())) {
+                cloudinaryService.deleteImageByUrl(admin.getProfileImage());
+            }
+            admin.setProfileImage(request.getProfileImage());
+        }
         userRepository.save(admin);
         log.info("Admin profile updated: {}", admin.getId());
         return toUserResponse(admin);

@@ -29,7 +29,7 @@ public class CloudinaryService {
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final List<String> ALLOWED_TYPES = List.of(
-        "image/jpeg", "image/png", "image/webp", "image/gif"
+            "image/jpeg", "image/png", "image/webp", "image/gif"
     );
 
     /**
@@ -45,13 +45,13 @@ public class CloudinaryService {
 
             @SuppressWarnings("unchecked")
             Map<String, Object> result = cloudinary.uploader().upload(compressedBytes,
-                ObjectUtils.asMap(
-                    "public_id", publicId,
-                    "overwrite", true,
-                    "resource_type", "image",
-                    "quality", "auto:good",
-                    "fetch_format", "auto"
-                )
+                    ObjectUtils.asMap(
+                            "public_id", publicId,
+                            "overwrite", true,
+                            "resource_type", "image",
+                            "quality", "auto:good",
+                            "fetch_format", "auto"
+                    )
             );
 
             String imageUrl = (String) result.get("secure_url");
@@ -98,6 +98,34 @@ public class CloudinaryService {
     }
 
     /**
+     * Extracts the Cloudinary public_id from a secure_url, e.g.
+     * https://res.cloudinary.com/<cloud>/image/upload/v169.../folder/sub/abc123.jpg
+     * -> folder/sub/abc123
+     *
+     * Returns null for anything that isn't a Cloudinary upload URL (external
+     * seed/demo image URLs, blank strings, etc.) — callers can pass the result
+     * straight to deleteImage(), which already no-ops safely on null.
+     */
+    public String extractPublicId(String url) {
+        if (url == null || url.isBlank()) return null;
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile(".*/upload/(?:v\\d+/)?(.+)\\.[a-zA-Z0-9]+(?:\\?.*)?$")
+                .matcher(url);
+        return m.matches() ? m.group(1) : null;
+    }
+
+    /**
+     * Convenience wrapper for entities that only store the image URL (no
+     * separate publicId column) — e.g. Category.imageUrl, User.profileImage,
+     * User.shopLogo/shopBanner. Safe to call with any URL, including
+     * non-Cloudinary ones (silently does nothing) or null/blank (no-ops).
+     */
+    public void deleteImageByUrl(String url) {
+        String publicId = extractPublicId(url);
+        if (publicId != null) deleteImage(publicId);
+    }
+
+    /**
      * Upload from a URL (e.g. external product image).
      */
     public Map<String, String> uploadFromUrl(String imageUrl, String subfolder) {
@@ -105,14 +133,14 @@ public class CloudinaryService {
             String publicId = folder + "/" + subfolder + "/" + UUID.randomUUID();
             @SuppressWarnings("unchecked")
             Map<String, Object> result = cloudinary.uploader().upload(imageUrl,
-                ObjectUtils.asMap(
-                    "public_id", publicId,
-                    "resource_type", "image"
-                )
+                    ObjectUtils.asMap(
+                            "public_id", publicId,
+                            "resource_type", "image"
+                    )
             );
             return Map.of(
-                "url", (String) result.get("secure_url"),
-                "publicId", (String) result.get("public_id")
+                    "url", (String) result.get("secure_url"),
+                    "publicId", (String) result.get("public_id")
             );
         } catch (IOException e) {
             throw new BadRequestException("Failed to upload image from URL: " + e.getMessage());
@@ -141,10 +169,10 @@ public class CloudinaryService {
     private byte[] compressImage(MultipartFile file) throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         Thumbnails.of(file.getInputStream())
-            .size(1200, 1200)
-            .keepAspectRatio(true)
-            .outputQuality(0.85)
-            .toOutputStream(outputStream);
+                .size(1200, 1200)
+                .keepAspectRatio(true)
+                .outputQuality(0.85)
+                .toOutputStream(outputStream);
         return outputStream.toByteArray();
     }
 }

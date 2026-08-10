@@ -64,6 +64,38 @@ public class CouponService {
     }
 
 
+    public CouponResponse updateCoupon(Long id, CouponRequest request) {
+        Coupon coupon = couponRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Coupon", id));
+
+        String newCode = request.getCode().toUpperCase().trim();
+        if (!newCode.equals(coupon.getCode()) && couponRepository.existsByCode(newCode)) {
+            throw new BadRequestException("Coupon code already exists: " + newCode);
+        }
+        if (request.getValidFrom().isAfter(request.getValidUntil())) {
+            throw new BadRequestException("Valid from date must be before valid until date");
+        }
+        if (request.getDiscountType() == DiscountType.PERCENTAGE &&
+                request.getDiscountValue().compareTo(new BigDecimal("100")) > 0) {
+            throw new BadRequestException("Percentage discount cannot exceed 100");
+        }
+
+        coupon.setCode(newCode);
+        coupon.setDescription(request.getDescription());
+        coupon.setDiscountType(request.getDiscountType());
+        coupon.setDiscountValue(request.getDiscountValue());
+        coupon.setMinOrderValue(request.getMinOrderValue() != null ? request.getMinOrderValue() : BigDecimal.ZERO);
+        coupon.setMaxDiscount(request.getMaxDiscount());
+        coupon.setValidFrom(request.getValidFrom().atStartOfDay());
+        coupon.setValidUntil(request.getValidUntil().atTime(23, 59, 59));
+        coupon.setUsageLimit(request.getUsageLimit());
+        coupon.setPerUserLimit(request.getPerUserLimit());
+
+        coupon = couponRepository.save(coupon);
+        log.info("Coupon updated: {}", coupon.getCode());
+        return toCouponResponse(coupon, null);
+    }
+
     @Transactional(readOnly = true)
     public PagedResponse<CouponResponse> getAllCoupons(int page, int size) {
         Page<Coupon> couponPage = couponRepository
@@ -80,12 +112,16 @@ public class CouponService {
                 .build();
     }
 
+    /**
+     * Permanently deletes the coupon. Safe to hard-delete: orders store the
+     * coupon code they used as a plain string snapshot (Order.couponCode),
+     * not a foreign key to this row, so past order history is unaffected.
+     */
     public void deleteCoupon(Long id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Coupon", id));
-        coupon.setActive(false);
-        couponRepository.save(coupon);
-        log.info("Coupon deactivated: {}", coupon.getCode());
+        couponRepository.delete(coupon);
+        log.info("Coupon deleted: {}", coupon.getCode());
     }
 
     // ─── Customer: Active coupons list (for cart/checkout dropdown) ────────
@@ -110,7 +146,7 @@ public class CouponService {
             throw new BadRequestException("Coupon is expired or no longer valid");
         }
         if (request.getOrderAmount().compareTo(coupon.getMinOrderValue()) < 0) {
-            throw new BadRequestException("Minimum order value of ₹"
+            throw new BadRequestException("Minimum order value of pkr"
                     + coupon.getMinOrderValue() + " required for this coupon");
         }
         if (customerId != null && coupon.getPerUserLimit() > 0) {

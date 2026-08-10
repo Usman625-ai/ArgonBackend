@@ -40,6 +40,7 @@ public class SellerService {
     private final OrderRepository    orderRepository;
     private final ProductRepository  productRepository;
     private final AdminService       adminService;
+    private final CloudinaryService  cloudinaryService;
 
     // ─── Seller Dashboard Stats ────────────────────────────────────────
 
@@ -126,11 +127,26 @@ public class SellerService {
         }
 
         if (request.getName()              != null) seller.setName(request.getName());
-        if (request.getProfileImage()      != null) seller.setProfileImage(request.getProfileImage());
+        if (request.getProfileImage()      != null) {
+            if (!request.getProfileImage().equals(seller.getProfileImage())) {
+                cloudinaryService.deleteImageByUrl(seller.getProfileImage());
+            }
+            seller.setProfileImage(request.getProfileImage());
+        }
         if (request.getShopName()          != null) seller.setShopName(request.getShopName());
         if (request.getShopDescription()   != null) seller.setShopDescription(request.getShopDescription());
-        if (request.getShopLogo()          != null) seller.setShopLogo(request.getShopLogo());
-        if (request.getShopBanner()        != null) seller.setShopBanner(request.getShopBanner());
+        if (request.getShopLogo()          != null) {
+            if (!request.getShopLogo().equals(seller.getShopLogo())) {
+                cloudinaryService.deleteImageByUrl(seller.getShopLogo());
+            }
+            seller.setShopLogo(request.getShopLogo());
+        }
+        if (request.getShopBanner()        != null) {
+            if (!request.getShopBanner().equals(seller.getShopBanner())) {
+                cloudinaryService.deleteImageByUrl(seller.getShopBanner());
+            }
+            seller.setShopBanner(request.getShopBanner());
+        }
         if (request.getGstNumber()         != null) seller.setGstNumber(request.getGstNumber());
         if (request.getPanNumber()         != null) seller.setPanNumber(request.getPanNumber());
         if (request.getContactNumber()     != null) seller.setContactNumber(request.getContactNumber());

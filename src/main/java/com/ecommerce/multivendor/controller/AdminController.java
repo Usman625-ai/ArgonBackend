@@ -230,10 +230,16 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(couponService.getAllCoupons(page, size)));
     }
 
+    @PutMapping("/coupons/{id}")
+    public ResponseEntity<ApiResponse<CouponResponse>> updateCoupon(
+            @PathVariable Long id, @Valid @RequestBody CouponRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Coupon updated", couponService.updateCoupon(id, request)));
+    }
+
     @DeleteMapping("/coupons/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteCoupon(@PathVariable Long id) {
         couponService.deleteCoupon(id);
-        return ResponseEntity.ok(ApiResponse.success("Coupon deactivated"));
+        return ResponseEntity.ok(ApiResponse.success("Coupon deleted"));
     }
 
     // ─── Reports ───────────────────────────────────────────────────────────
