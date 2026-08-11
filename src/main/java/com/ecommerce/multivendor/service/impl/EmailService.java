@@ -2,21 +2,25 @@ package com.ecommerce.multivendor.service.impl;
 
 import com.ecommerce.multivendor.entity.Order;
 import com.ecommerce.multivendor.entity.User;
-import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.javamail.JavaMailSender;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    @Value("${app.mail.brevo-api-key}")
+    private String brevoApiKey;
 
     @Value("${app.mail.from}")
     private String fromEmail;
@@ -27,22 +31,34 @@ public class EmailService {
     @Value("${app.frontend.url}")
     private String frontendUrl;
 
-    // ─── Core send method ─────────────────────────────────────────────────
-    // NOTE: @Async intentionally lives on the public-facing methods below, not
-    // here. Every call to this method is a same-class self-invocation (e.g.
-    // sendOrderConfirmation calling this.sendEmail(...)), which bypasses
-    // Spring's proxy-based @Async entirely — annotating it here would silently
-    // do nothing and every email would block the calling request thread.
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     public void sendEmail(String to, String subject, String htmlBody) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(fromEmail, fromName);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(htmlBody, true);
-            mailSender.send(message);
-            log.info("Email sent to: {} | Subject: {}", to, subject);
+            Map<String, Object> payload = Map.of(
+                    "sender", Map.of("name", fromName, "email", fromEmail),
+                    "to", List.of(Map.of("email", to)),
+                    "subject", subject,
+                    "htmlContent", htmlBody
+            );
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("api-key", brevoApiKey)
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(payload)))
+                    .build();
+
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                log.info("Email sent to: {} | Subject: {}", to, subject);
+            } else {
+                log.error("Failed to send email to {}: HTTP {} - {}", to, response.statusCode(), response.body());
+            }
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", to, e.getMessage());
         }
