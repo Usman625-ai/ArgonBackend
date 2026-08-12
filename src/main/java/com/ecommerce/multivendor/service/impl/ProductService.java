@@ -436,6 +436,7 @@ public class ProductService {
                 .sellerId(product.getSeller().getId())
                 .sellerName(product.getSeller().getName())
                 .shopName(product.getSeller().getShopName())
+                .sellerProfileImage(product.getSeller().getProfileImage())
                 .images(images.stream().map(img ->
                         ProductImageResponse.builder()
                                 .id(img.getId())

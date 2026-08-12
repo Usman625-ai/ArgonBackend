@@ -36,6 +36,7 @@ public class ProductResponse {
     private Long sellerId;
     private String sellerName;
     private String shopName;
+    private String sellerProfileImage;
     private String primaryImageUrl;
     private List<ProductImageResponse> images;
     private LocalDateTime createdAt;
