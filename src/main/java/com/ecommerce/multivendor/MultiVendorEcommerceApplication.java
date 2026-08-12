@@ -1,5 +1,6 @@
 package com.ecommerce.multivendor;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
@@ -8,6 +9,8 @@ import org.springframework.core.Ordered;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
+
+import java.util.TimeZone;
 
 @SpringBootApplication
 @EnableScheduling
@@ -20,6 +23,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableRetry(order = Ordered.LOWEST_PRECEDENCE - 1)
 @ComponentScan(basePackages = "com.ecommerce.multivendor")
 public class MultiVendorEcommerceApplication {
+
+    @PostConstruct
+    void init() {
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Karachi"));
+    }
+
     public static void main(String[] args) {
         SpringApplication.run(MultiVendorEcommerceApplication.class, args);
     }
