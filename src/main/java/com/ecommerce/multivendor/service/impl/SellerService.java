@@ -4,12 +4,16 @@ import com.ecommerce.multivendor.dto.request.UpdateSellerProfileRequest;
 import com.ecommerce.multivendor.dto.response.ApiResponse;
 import com.ecommerce.multivendor.dto.response.MonthlyRevenueResponse;
 import com.ecommerce.multivendor.dto.response.SellerDashboardResponse;
+import com.ecommerce.multivendor.dto.response.SellerPublicProfileResponse;
 import com.ecommerce.multivendor.dto.response.UserResponse;
 import com.ecommerce.multivendor.entity.User;
+import com.ecommerce.multivendor.enums.Role;
 import com.ecommerce.multivendor.enums.SellerStatus;
 import com.ecommerce.multivendor.exception.BadRequestException;
+import com.ecommerce.multivendor.exception.ResourceNotFoundException;
 import com.ecommerce.multivendor.repository.OrderRepository;
 import com.ecommerce.multivendor.repository.ProductRepository;
+import com.ecommerce.multivendor.repository.ReviewRepository;
 import com.ecommerce.multivendor.repository.UserRepository;
 import com.ecommerce.multivendor.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -39,10 +43,38 @@ public class SellerService {
     private final UserRepository     userRepository;
     private final OrderRepository    orderRepository;
     private final ProductRepository  productRepository;
+    private final ReviewRepository   reviewRepository;
     private final AdminService       adminService;
     private final CloudinaryService  cloudinaryService;
 
     // ─── Seller Dashboard Stats ────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public SellerPublicProfileResponse getSellerPublicProfile(Long sellerId) {
+        User seller = userRepository.findById(sellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Seller", sellerId));
+
+        if (seller.getRole() != Role.SELLER || seller.getSellerStatus() != SellerStatus.APPROVED || !seller.isActive()) {
+            throw new ResourceNotFoundException("Seller", sellerId);
+        }
+
+        long totalReviews = reviewRepository.countReviewsForSeller(sellerId);
+        Double avgRating = totalReviews > 0 ? reviewRepository.calculateAverageRatingForSeller(sellerId) : null;
+
+        return SellerPublicProfileResponse.builder()
+                .id(seller.getId())
+                .name(seller.getName())
+                .shopName(seller.getShopName())
+                .shopDescription(seller.getShopDescription())
+                .shopLogo(seller.getShopLogo())
+                .shopBanner(seller.getShopBanner())
+                .memberSince(seller.getCreatedAt())
+                .totalProducts(productRepository.countActiveProductsBySeller(sellerId))
+                .ordersDelivered(orderRepository.countDeliveredOrdersBySeller(sellerId))
+                .averageRating(avgRating != null ? Math.round(avgRating * 10) / 10.0 : null)
+                .totalReviews(totalReviews)
+                .build();
+    }
 
     @Transactional(readOnly = true)
     public SellerDashboardResponse getSellerStats(Long sellerId) {

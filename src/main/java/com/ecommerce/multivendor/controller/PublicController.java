@@ -4,6 +4,7 @@ import com.ecommerce.multivendor.dto.response.*;
 import com.ecommerce.multivendor.service.impl.CategoryService;
 import com.ecommerce.multivendor.service.impl.ProductService;
 import com.ecommerce.multivendor.service.impl.ReviewService;
+import com.ecommerce.multivendor.service.impl.SellerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,7 @@ public class PublicController {
     private final ProductService  productService;
     private final CategoryService categoryService;
     private final ReviewService   reviewService;
+    private final SellerService   sellerService;
 
     // Products
 
@@ -41,7 +43,7 @@ public class PublicController {
         if (q != null || categoryId != null || minPrice != null
                 || maxPrice != null || brand != null) {
             result = productService.searchProducts(
-                q, categoryId, minPrice, maxPrice, brand, sortBy, sortDir, page, size
+                    q, categoryId, minPrice, maxPrice, brand, sortBy, sortDir, page, size
             );
         } else {
             result = productService.getPublicProducts(page, size, sortBy, sortDir);
@@ -66,8 +68,24 @@ public class PublicController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-            reviewService.getProductReviews(id, page, size)
+                reviewService.getProductReviews(id, page, size)
         ));
+    }
+
+    // Sellers
+
+    @GetMapping("/api/sellers/{id}")
+    public ResponseEntity<ApiResponse<SellerPublicProfileResponse>> getSellerPublicProfile(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(sellerService.getSellerPublicProfile(id)));
+    }
+
+    @GetMapping("/api/sellers/{id}/products")
+    public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getSellerPublicProducts(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        return ResponseEntity.ok(ApiResponse.success(productService.getSellerProducts(id, page, size)));
     }
 
     // Categories
@@ -113,8 +131,8 @@ public class PublicController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-            productService.searchProducts(q, categoryId, minPrice, maxPrice,
-                brand, sortBy, sortDir, page, size)
+                productService.searchProducts(q, categoryId, minPrice, maxPrice,
+                        brand, sortBy, sortDir, page, size)
         ));
     }
 
