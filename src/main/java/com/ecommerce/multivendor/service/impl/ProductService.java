@@ -163,13 +163,6 @@ public class ProductService {
             throw new BadRequestException("At least one product image is required");
         }
 
-        // Must run BEFORE the builder below reads request.getSpecifications() — an
-        // empty string is not valid JSON and TiDB rejects it on insert for this
-        // JSON-typed column ("Data truncation: Invalid JSON text").
-        if (request.getSpecifications() != null && request.getSpecifications().isBlank()) {
-            request.setSpecifications(null);
-        }
-
         Product product = Product.builder()
                 .name(request.getName())
                 .slug(slug)
@@ -179,8 +172,8 @@ public class ProductService {
                 .discountedPrice(request.getDiscountedPrice())
                 .stockQuantity(request.getStockQuantity())
                 .brand(request.getBrand())
-                .tags(request.getTags())
-                .specifications(request.getSpecifications())
+                .tags(normalizeJsonArray(request.getTags()))
+                .specifications(normalizeJsonObject(request.getSpecifications()))
                 .category(category)
                 .seller(seller)
                 .featured(request.isFeatured())
@@ -208,11 +201,6 @@ public class ProductService {
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category", request.getCategoryId()));
 
-        // Must run BEFORE product.setSpecifications() below — see same note in createProduct().
-        if (request.getSpecifications() != null && request.getSpecifications().isBlank()) {
-            request.setSpecifications(null);
-        }
-
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setShortDescription(request.getShortDescription());
@@ -220,8 +208,8 @@ public class ProductService {
         product.setDiscountedPrice(request.getDiscountedPrice());
         product.setStockQuantity(request.getStockQuantity());
         product.setBrand(request.getBrand());
-        product.setTags(request.getTags());
-        product.setSpecifications(request.getSpecifications());
+        product.setTags(normalizeJsonArray(request.getTags()));
+        product.setSpecifications(normalizeJsonObject(request.getSpecifications()));
         product.setCategory(category);
         product.setFeatured(request.isFeatured());
         // Only overwrite the primary image if a real value was supplied.
@@ -493,6 +481,22 @@ public class ProductService {
         if (!product.getSeller().getId().equals(sellerId)) {
             throw new UnauthorizedException("You are not authorized to manage this product");
         }
+    }
+
+    /**
+     * Defends the JSON-typed `tags` column against blank/null input, which
+     * MySQL's JSON type rejects with an opaque "Data truncation: Invalid
+     * JSON text" error. @ValidJson on ProductRequest already guarantees
+     * that any non-blank value here is syntactically valid JSON, so this
+     * only needs to supply the empty-array default.
+     */
+    private String normalizeJsonArray(String raw) {
+        return (raw == null || raw.isBlank()) ? "[]" : raw;
+    }
+
+    /** Same as {@link #normalizeJsonArray}, but for the `specifications` object column. */
+    private String normalizeJsonObject(String raw) {
+        return (raw == null || raw.isBlank()) ? "{}" : raw;
     }
 
     private String generateUniqueSlug(String name) {

@@ -1,5 +1,6 @@
 package com.ecommerce.multivendor.dto.request;
 
+import com.ecommerce.multivendor.validation.ValidJson;
 import com.ecommerce.multivendor.validation.ValidProductPrice;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -58,12 +59,14 @@ public class ProductRequest {
     @Positive(message = "Category ID must be a positive number")
     private Long categoryId;
 
-    // JSON string e.g. ["tag1","tag2"] — validated for length only
+    // JSON string e.g. ["tag1","tag2"] — must be blank or a syntactically valid JSON array
     @Size(max = 500, message = "Tags string is too long")
+    @ValidJson(type = ValidJson.JsonType.ARRAY, message = "Tags must be a JSON array, e.g. [\"tag1\",\"tag2\"]")
     private String tags;
 
-    // JSON string e.g. {"Key":"Value"} — validated for length only
+    // JSON string e.g. {"Key":"Value"} — must be blank or a syntactically valid JSON object
     @Size(max = 5000, message = "Specifications string is too long")
+    @ValidJson(type = ValidJson.JsonType.OBJECT, message = "Specifications must be a JSON object, e.g. {\"color\":\"Red\"}")
     private String specifications;
 
     private boolean featured;
