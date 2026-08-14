@@ -204,7 +204,7 @@ public class EmailService {
         String body = buildEmailTemplate(
                 "Payment Successful! 💳",
                 "Hi " + order.getCustomer().getName() + ",",
-                "Payment of ₹" + order.getFinalAmount() + " received for order #" + order.getOrderNumber(),
+                "Payment of Rs" + order.getFinalAmount() + " received for order #" + order.getOrderNumber(),
                 null,
                 "Your order is being processed.",
                 frontendUrl + "/orders/" + order.getId(), "View Order"
@@ -259,11 +259,11 @@ public class EmailService {
             sb.append("<tr>");
             sb.append("<td style='padding:8px;border:1px solid #ddd;'>").append(item.getProductName()).append("</td>");
             sb.append("<td style='padding:8px;text-align:center;border:1px solid #ddd;'>").append(item.getQuantity()).append("</td>");
-            sb.append("<td style='padding:8px;text-align:right;border:1px solid #ddd;'>₹").append(item.getTotalPrice()).append("</td>");
+            sb.append("<td style='padding:8px;text-align:right;border:1px solid #ddd;'>Rs").append(item.getTotalPrice()).append("</td>");
             sb.append("</tr>");
         });
         sb.append("<tr><td colspan='2' style='padding:8px;text-align:right;border:1px solid #ddd;'><strong>Total</strong></td>");
-        sb.append("<td style='padding:8px;text-align:right;border:1px solid #ddd;'><strong>₹").append(order.getFinalAmount()).append("</strong></td></tr>");
+        sb.append("<td style='padding:8px;text-align:right;border:1px solid #ddd;'><strong>Rs").append(order.getFinalAmount()).append("</strong></td></tr>");
         sb.append("</table>");
         return sb.toString();
     }

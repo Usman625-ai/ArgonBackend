@@ -163,6 +163,13 @@ public class ProductService {
             throw new BadRequestException("At least one product image is required");
         }
 
+        // Must run BEFORE the builder below reads request.getSpecifications() — an
+        // empty string is not valid JSON and TiDB rejects it on insert for this
+        // JSON-typed column ("Data truncation: Invalid JSON text").
+        if (request.getSpecifications() != null && request.getSpecifications().isBlank()) {
+            request.setSpecifications(null);
+        }
+
         Product product = Product.builder()
                 .name(request.getName())
                 .slug(slug)
@@ -180,9 +187,6 @@ public class ProductService {
                 .primaryImageUrl(primaryImageUrl)
                 .active(true)
                 .build();
-        if (request.getSpecifications() != null && request.getSpecifications().isBlank()) {
-            request.setSpecifications(null);
-        }
 
         product = productRepository.save(product);
 
@@ -203,6 +207,11 @@ public class ProductService {
 
         Category category = categoryRepository.findById(request.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category", request.getCategoryId()));
+
+        // Must run BEFORE product.setSpecifications() below — see same note in createProduct().
+        if (request.getSpecifications() != null && request.getSpecifications().isBlank()) {
+            request.setSpecifications(null);
+        }
 
         product.setName(request.getName());
         product.setDescription(request.getDescription());
@@ -236,9 +245,6 @@ public class ProductService {
             });
             productImageRepository.deleteByProductId(productId);
             saveProductImages(product, request.getImageUrls());
-        }
-        if (request.getSpecifications() != null && request.getSpecifications().isBlank()) {
-            request.setSpecifications(null);
         }
 
         product = productRepository.save(product);
