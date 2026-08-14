@@ -1,6 +1,5 @@
 package com.ecommerce.multivendor;
 
-import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
@@ -23,13 +22,12 @@ import java.util.TimeZone;
 @EnableRetry(order = Ordered.LOWEST_PRECEDENCE - 1)
 @ComponentScan(basePackages = "com.ecommerce.multivendor")
 public class MultiVendorEcommerceApplication {
-
-    @PostConstruct
-    void init() {
-        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Karachi"));
-    }
-
     public static void main(String[] args) {
+        // Must run before SpringApplication.run() — Hibernate's
+        // EntityManagerFactory (built during context startup) can read/cache
+        // the JVM's default timezone earlier than any @PostConstruct bean
+        // would fire, which is why setting it there didn't take effect.
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Karachi"));
         SpringApplication.run(MultiVendorEcommerceApplication.class, args);
     }
 }
