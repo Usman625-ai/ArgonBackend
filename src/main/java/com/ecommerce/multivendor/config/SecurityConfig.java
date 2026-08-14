@@ -63,6 +63,8 @@ public class SecurityConfig {
             "/api/brands",
             // Public seller storefronts
             "/api/sellers/**",
+            // Public reviewer profiles
+            "/api/customers/**",
             // JazzCash callbacks (no JWT, secured by pp_SecureHash instead)
             "/api/payments/jazzcash/callback",
             "/api/payments/jazzcash/verify",

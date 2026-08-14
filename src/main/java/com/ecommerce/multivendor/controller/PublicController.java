@@ -88,6 +88,22 @@ public class PublicController {
         return ResponseEntity.ok(ApiResponse.success(productService.getSellerProducts(id, page, size)));
     }
 
+    // Customers (public reviewer profiles)
+
+    @GetMapping("/api/customers/{id}")
+    public ResponseEntity<ApiResponse<CustomerPublicProfileResponse>> getCustomerPublicProfile(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(reviewService.getCustomerPublicProfile(id)));
+    }
+
+    @GetMapping("/api/customers/{id}/reviews")
+    public ResponseEntity<ApiResponse<PagedResponse<ReviewResponse>>> getCustomerPublicReviews(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponse.success(reviewService.getCustomerReviews(id, page, size)));
+    }
+
     // Categories
 
     @GetMapping("/api/categories")
