@@ -56,7 +56,7 @@ public class AdminService {
         // ── Product & order counts ─────────────────────────────────────
         long totalProducts = productRepository.countByActiveTrue();
         long totalOrders = orderRepository.count();
-        long pendingOrders = orderRepository.countActiveOrders();
+        long pendingOrders = orderRepository.countPendingOrders();
 
         // ── Revenue ────────────────────────────────────────────────────
         BigDecimal totalRevenue = orderRepository.calculateTotalRevenue();

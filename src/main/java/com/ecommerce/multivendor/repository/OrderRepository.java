@@ -58,6 +58,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT COUNT(o) FROM Order o WHERE o.orderStatus != 'CANCELLED'")
     long countActiveOrders();
 
+    /** Platform-wide pending orders (PENDING or CONFIRMED) — mirrors countPendingOrdersBySeller */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.orderStatus IN ('PENDING','CONFIRMED')")
+    long countPendingOrders();
+
     @Query("SELECT COALESCE(SUM(o.finalAmount), 0) FROM Order o WHERE o.paymentStatus = 'PAID'")
     BigDecimal calculateTotalRevenue();
 
