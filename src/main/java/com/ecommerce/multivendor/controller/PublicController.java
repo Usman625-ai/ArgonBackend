@@ -2,6 +2,7 @@ package com.ecommerce.multivendor.controller;
 
 import com.ecommerce.multivendor.dto.response.*;
 import com.ecommerce.multivendor.service.impl.CategoryService;
+import com.ecommerce.multivendor.service.impl.PlatformStatsService;
 import com.ecommerce.multivendor.service.impl.ProductService;
 import com.ecommerce.multivendor.service.impl.ReviewService;
 import com.ecommerce.multivendor.service.impl.SellerService;
@@ -24,6 +25,14 @@ public class PublicController {
     private final CategoryService categoryService;
     private final ReviewService   reviewService;
     private final SellerService   sellerService;
+    private final PlatformStatsService platformStatsService;
+
+    // Platform stats (landing page / About page counters)
+
+    @GetMapping("/api/public/stats")
+    public ResponseEntity<ApiResponse<PlatformStatsResponse>> getPlatformStats() {
+        return ResponseEntity.ok(ApiResponse.success(platformStatsService.getPlatformStats()));
+    }
 
     // Products
 

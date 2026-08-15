@@ -61,6 +61,8 @@ public class SecurityConfig {
             "/api/categories/**",
             "/api/search",
             "/api/brands",
+            // Public platform stats (landing page / About page counters)
+            "/api/public/stats",
             // Public seller storefronts
             "/api/sellers/**",
             // Public reviewer profiles
