@@ -158,6 +158,19 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleNoResourceFound(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        // A request hit a path with no matching controller/static resource — an
+        // ordinary 404 (e.g. someone probing /api/docs, a typo'd URL, a dead
+        // link). This is NOT an unexpected server error, so it shouldn't be
+        // logged at ERROR with a full ~130-line filter-chain stack trace like
+        // the generic handler below does — one WARN line is plenty.
+        log.warn("404 - no handler for: {}", ex.getResourcePath());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("Not found"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleGenericException(Exception ex) {
         log.error("Unexpected error: {}", ex.getMessage(), ex);
