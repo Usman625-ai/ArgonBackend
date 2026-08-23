@@ -63,6 +63,8 @@ public class SecurityConfig {
             "/api/brands",
             // Public platform stats (landing page / About page counters)
             "/api/public/stats",
+            // Cron/keep-alive ping — no DB touch, see PublicController for why
+            "/api/ping",
             // Public seller storefronts
             "/api/sellers/**",
             // Public reviewer profiles

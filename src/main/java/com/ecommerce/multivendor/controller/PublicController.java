@@ -27,6 +27,17 @@ public class PublicController {
     private final SellerService   sellerService;
     private final PlatformStatsService platformStatsService;
 
+    // Cron/keep-alive ping — deliberately does NOT touch the database.
+    // /actuator/health includes a DB health check by default, which means a
+    // cron hitting it also has to wake a cold TiDB Serverless connection —
+    // slow enough on a cold start to blow past most cron providers'
+    // request timeout, which then auto-disables the job after repeated
+    // "failures". This endpoint only proves the JVM/Render dyno is up.
+    @GetMapping("/api/ping")
+    public ResponseEntity<String> ping() {
+        return ResponseEntity.ok("pong");
+    }
+
     // Platform stats (landing page / About page counters)
 
     @GetMapping("/api/public/stats")
